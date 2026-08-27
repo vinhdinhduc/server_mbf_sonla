@@ -1,0 +1,26 @@
+import { z } from 'zod';
+
+const timeRegex = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+
+export const createShiftSchema = z
+  .object({
+    user_id: z.coerce.number().int().positive(),
+    shift_date: z.coerce.date(),
+    start_time: z.string().regex(timeRegex, 'start_time phai dang HH:mm hoac HH:mm:ss'),
+    end_time: z.string().regex(timeRegex, 'end_time phai dang HH:mm hoac HH:mm:ss'),
+    note: z.string().max(255).optional().nullable(),
+  })
+  .refine((data) => data.start_time < data.end_time, {
+    message: 'start_time phai truoc end_time',
+    path: ['end_time'],
+  });
+
+export const updateShiftSchema = z.object({
+  shift_date: z.coerce.date().optional(),
+  start_time: z.string().regex(timeRegex).optional(),
+  end_time: z.string().regex(timeRegex).optional(),
+  note: z.string().max(255).optional().nullable(),
+});
+
+export type CreateShiftDto = z.infer<typeof createShiftSchema>;
+export type UpdateShiftDto = z.infer<typeof updateShiftSchema>;
