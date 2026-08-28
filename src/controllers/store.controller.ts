@@ -28,7 +28,7 @@ export const storeController = {
     const dto = createStoreSchema.parse(req.body);
     const store = await storeService.create(dto);
     req.auditContext = { module: 'stores', action: 'create', targetId: store.id, newValue: dto };
-    sendCreated(res, store, 'Tao cua hang thanh cong');
+    sendCreated(res, store, 'Tạo cửa hàng thành công');
   },
 
   async update(req: Request, res: Response) {
@@ -36,13 +36,13 @@ export const storeController = {
     const dto = updateStoreSchema.parse(req.body);
     const store = await storeService.update(id, dto);
     req.auditContext = { module: 'stores', action: 'update', targetId: id, newValue: dto };
-    sendSuccess(res, store, 'Cap nhat cua hang thanh cong');
+    sendSuccess(res, store, 'Cập nhật cửa hàng thành công');
   },
 
   async remove(req: Request, res: Response) {
     const id = Number(req.params.id);
     await storeService.remove(id);
     req.auditContext = { module: 'stores', action: 'delete', targetId: id };
-    sendSuccess(res, null, 'Xoa cua hang thanh cong');
+    sendSuccess(res, null, 'Xóa cửa hàng thành công  ');
   },
 };

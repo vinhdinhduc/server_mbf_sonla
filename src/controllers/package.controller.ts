@@ -33,7 +33,7 @@ export const packageController = {
     const dto = createPackageSchema.parse(req.body);
     const pkg = await packageService.create(dto);
     req.auditContext = { module: 'packages', action: 'create', targetId: pkg.id, newValue: dto };
-    sendCreated(res, pkg, 'Tao goi cuoc thanh cong');
+    sendCreated(res, pkg, 'Tạo gói cước thành công');
   },
 
   async update(req: Request, res: Response) {
@@ -41,13 +41,13 @@ export const packageController = {
     const dto = updatePackageSchema.parse(req.body);
     const pkg = await packageService.update(id, dto);
     req.auditContext = { module: 'packages', action: 'update', targetId: id, newValue: dto };
-    sendSuccess(res, pkg, 'Cap nhat goi cuoc thanh cong');
+    sendSuccess(res, pkg, 'Cập nhật gói cước thành công');
   },
 
   async remove(req: Request, res: Response) {
     const id = Number(req.params.id);
     await packageService.remove(id);
     req.auditContext = { module: 'packages', action: 'delete', targetId: id };
-    sendSuccess(res, null, 'Xoa goi cuoc thanh cong');
+    sendSuccess(res, null, 'Xóa gói cước thành công');
   },
 };

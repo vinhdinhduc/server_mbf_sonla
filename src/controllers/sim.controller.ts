@@ -30,7 +30,7 @@ export const simController = {
     const dto = createSimSchema.parse(req.body);
     const sim = await simService.create(dto);
     req.auditContext = { module: 'sims', action: 'create', targetId: sim.id, newValue: dto };
-    sendCreated(res, sim, 'Tao sim thanh cong');
+    sendCreated(res, sim, 'Tạo sim thành công');
   },
 
   async update(req: Request, res: Response) {
@@ -38,14 +38,14 @@ export const simController = {
     const dto = updateSimSchema.parse(req.body);
     const sim = await simService.update(id, dto);
     req.auditContext = { module: 'sims', action: 'update', targetId: id, newValue: dto };
-    sendSuccess(res, sim, 'Cap nhat sim thanh cong');
+    sendSuccess(res, sim, 'Cập nhật sim thành công');
   },
 
   async remove(req: Request, res: Response) {
     const id = Number(req.params.id);
     await simService.remove(id);
     req.auditContext = { module: 'sims', action: 'delete', targetId: id };
-    sendSuccess(res, null, 'Xoa sim thanh cong');
+    sendSuccess(res, null, 'Xóa sim thành công');
   },
 
   async importExcel(req: Request, res: Response) {
@@ -56,6 +56,6 @@ export const simController = {
       action: 'create',
       description: `Import Excel: ${result.inserted} dong thanh cong, ${result.skipped} dong loi`,
     };
-    sendSuccess(res, result, 'Import hoan tat');
+    sendSuccess(res, result, 'Nhập dữ liệu thành công');
   },
 };

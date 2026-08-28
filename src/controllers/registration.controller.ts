@@ -13,7 +13,7 @@ export const registrationController = {
     const dto = submitCartSchema.parse(req.body);
     await verifyRecaptcha(dto.recaptcha_token);
     const group = await registrationService.submitCart(dto);
-    sendCreated(res, group, 'Gui dang ky thanh cong, chung toi se lien he voi ban som nhat');
+    sendCreated(res, group, 'Gửi đăng ký thành công, chúng tôi sẽ liên hệ với bạn sớm nhất');
   },
 
   async list(req: Request, res: Response) {
@@ -37,6 +37,6 @@ export const registrationController = {
       targetId: id,
       newValue: dto,
     };
-    sendSuccess(res, group, 'Cap nhat trang thai thanh cong');
+    sendSuccess(res, group, 'Cập nhật trạng thái thành công');
   },
 };

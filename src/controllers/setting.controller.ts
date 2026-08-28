@@ -20,9 +20,9 @@ export const settingController = {
     req.auditContext = {
       module: 'settings',
       action: 'update',
-      description: `Cap nhat settings nhom ${dto.group}`,
+      description: `Cập nhật cài đặt nhóm ${dto.group}`,
       newValue: dto,
     };
-    sendSuccess(res, rows, 'Cap nhat cau hinh thanh cong');
+    sendSuccess(res, rows, 'Cập nhật cấu hình thành công');
   },
 };

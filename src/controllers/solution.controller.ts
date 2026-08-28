@@ -33,7 +33,7 @@ export const solutionController = {
     const dto = createSolutionSchema.parse(req.body);
     const sol = await solutionService.create(dto);
     req.auditContext = { module: 'solutions', action: 'create', targetId: sol.id, newValue: dto };
-    sendCreated(res, sol, 'Tao giai phap thanh cong');
+    sendCreated(res, sol, 'Tạo giải pháp thành công');
   },
 
   async update(req: Request, res: Response) {
@@ -41,13 +41,13 @@ export const solutionController = {
     const dto = updateSolutionSchema.parse(req.body);
     const sol = await solutionService.update(id, dto);
     req.auditContext = { module: 'solutions', action: 'update', targetId: id, newValue: dto };
-    sendSuccess(res, sol, 'Cap nhat giai phap thanh cong');
+    sendSuccess(res, sol, 'Cập nhật giải pháp thành công');
   },
 
   async remove(req: Request, res: Response) {
     const id = Number(req.params.id);
     await solutionService.remove(id);
     req.auditContext = { module: 'solutions', action: 'delete', targetId: id };
-    sendSuccess(res, null, 'Xoa giai phap thanh cong');
+    sendSuccess(res, null, 'Xóa giải pháp thành công');
   },
 };

@@ -10,7 +10,7 @@ export const contactController = {
     await verifyRecaptcha(dto.recaptcha_token);
     const { recaptcha_token, ...rest } = dto;
     const contact = await contactService.create(rest);
-    sendCreated(res, contact, 'Gui lien he thanh cong');
+    sendCreated(res, contact, 'Gửi liên hệ thành công');
   },
 
   async list(req: Request, res: Response) {
@@ -26,6 +26,6 @@ export const contactController = {
     const dto = updateContactSchema.parse(req.body);
     const contact = await contactService.updateStatus(id, dto);
     req.auditContext = { module: 'contacts', action: 'update', targetId: id, newValue: dto };
-    sendSuccess(res, contact, 'Cap nhat trang thai thanh cong');
+    sendSuccess(res, contact, 'Cập nhật trạng thái thành công');
   },
 };

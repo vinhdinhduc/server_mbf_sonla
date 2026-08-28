@@ -33,7 +33,7 @@ export const newsController = {
     const dto = createNewsSchema.parse(req.body);
     const news = await newsService.create(dto, req.user!.id);
     req.auditContext = { module: 'news', action: 'create', targetId: news.id, newValue: dto };
-    sendCreated(res, news, 'Tao tin tuc thanh cong');
+    sendCreated(res, news, 'Tạo tin tức thành công');
   },
 
   async update(req: Request, res: Response) {
@@ -41,13 +41,13 @@ export const newsController = {
     const dto = updateNewsSchema.parse(req.body);
     const news = await newsService.update(id, dto);
     req.auditContext = { module: 'news', action: 'update', targetId: id, newValue: dto };
-    sendSuccess(res, news, 'Cap nhat tin tuc thanh cong');
+    sendSuccess(res, news, 'Cập nhật tin tức thành công');
   },
 
   async remove(req: Request, res: Response) {
     const id = Number(req.params.id);
     await newsService.remove(id);
     req.auditContext = { module: 'news', action: 'delete', targetId: id };
-    sendSuccess(res, null, 'Xoa tin tuc thanh cong');
+    sendSuccess(res, null, 'Xóa tin tức thành công');
   },
 };

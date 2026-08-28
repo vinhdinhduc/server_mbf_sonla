@@ -7,7 +7,7 @@ export const newsletterController = {
   async subscribe(req: Request, res: Response) {
     const dto = subscribeNewsletterSchema.parse(req.body);
     const sub = await newsletterService.subscribe(dto.email);
-    sendCreated(res, sub, 'Dang ky nhan uu dai thanh cong');
+    sendCreated(res, sub, 'Đăng kí nhận ưu đãi thành công');
   },
 
   async list(req: Request, res: Response) {
