@@ -56,4 +56,9 @@ export const PUBLIC_SETTING_KEYS = [
   'theme_primary_color',
   'home_banner',
   'ai_chatbot_enabled',
+  'footer_branch_name',
+  'footer_address',
+  'footer_email',
+  'footer_description',
+  'footer_facebook_url',
 ];

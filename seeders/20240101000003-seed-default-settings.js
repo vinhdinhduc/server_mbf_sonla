@@ -6,7 +6,32 @@ module.exports = {
       { key: 'site_logo', value: '/uploads/default-logo.png', group: 'general', updated_at: now },
       { key: 'hotline', value: '18001090', group: 'general', updated_at: now },
       { key: 'notify_email', value: 'admin@mobifone-sonla.vn', group: 'general', updated_at: now },
-      { key: 'theme_primary_color', value: '#EE0033', group: 'theme', updated_at: now },
+      {
+        key: 'footer_branch_name',
+        value: 'Chi nhánh MobiFone tỉnh Sơn La',
+        group: 'general',
+        updated_at: now,
+      },
+      {
+        key: 'footer_address',
+        value: 'Tổ 3, Phường Chiềng Lề, Thành phố Sơn La, tỉnh Sơn La',
+        group: 'general',
+        updated_at: now,
+      },
+      { key: 'footer_email', value: 'sonla@mobifone.vn', group: 'general', updated_at: now },
+      {
+        key: 'footer_description',
+        value: 'Tổ 3, Phường Chiềng Lề, Thành phố Sơn La, tỉnh Sơn La',
+        group: 'general',
+        updated_at: now,
+      },
+      {
+        key: 'footer_facebook_url',
+        value: 'https://facebook.com/mobifonesonla',
+        group: 'general',
+        updated_at: now,
+      },
+      { key: 'theme_primary_color', value: '#0066b3', group: 'theme', updated_at: now },
       { key: 'home_banner', value: '/uploads/default-banner.jpg', group: 'theme', updated_at: now },
       { key: 'ai_chatbot_enabled', value: 'true', group: 'ai', updated_at: now },
       {
