@@ -21,6 +21,14 @@ export class RegistrationGroup extends Model<
 
   declare phone: string;
 
+  declare email: string;
+
+  declare delivery_method: 'address' | 'store';
+
+  declare sim_type: 'physical' | 'esim';
+
+  declare delivery_store: CreationOptional<string | null>;
+
   declare province: string;
 
   declare district: string;
@@ -46,6 +54,10 @@ export function initRegistrationGroupModel(sequelize: Sequelize): typeof Registr
       id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
       customer_name: { type: DataTypes.STRING(100), allowNull: false },
       phone: { type: DataTypes.STRING(20), allowNull: false },
+      email: { type: DataTypes.STRING(150), allowNull: false },
+      delivery_method: { type: DataTypes.ENUM('address', 'store'), allowNull: false },
+      sim_type: { type: DataTypes.ENUM('physical', 'esim'), allowNull: false },
+      delivery_store: { type: DataTypes.STRING(255), allowNull: true },
       province: { type: DataTypes.STRING(100), allowNull: false, defaultValue: 'Sơn La' },
       district: { type: DataTypes.STRING(100), allowNull: false, defaultValue: '' },
       ward: { type: DataTypes.STRING(100), allowNull: false, defaultValue: '' },

@@ -15,13 +15,24 @@ export const submitCartSchema = z.object({
     .min(9)
     .max(20)
     .regex(/^[0-9+]+$/, 'So dien thoai khong hop le'),
+  email: z.string().email().max(150),
   note: z.string().optional().nullable(),
+  delivery_method: z.enum(['address', 'store']),
+  sim_type: z.enum(['physical', 'esim']),
+  delivery_store: z.string().max(255).optional().nullable(),
   province: z.literal('Sơn La'),
-  district: z.string().min(1).max(100),
   ward: z.string().min(1).max(100),
-  delivery_address: z.string().min(1).max(255),
+  delivery_address: z.string().max(255).optional().nullable(),
   items: z.array(submitCartItemSchema).min(1, 'Gio hang khong duoc de trong'),
   recaptcha_token: z.string().min(1, 'Thieu recaptcha_token'),
+}).superRefine((value, context) => {
+  if (value.delivery_method === 'address') {
+    if (!value.ward) context.addIssue({ code: 'custom', path: ['ward'], message: 'Vui lòng chọn xã/phường Sơn La' });
+    if (!value.delivery_address) context.addIssue({ code: 'custom', path: ['delivery_address'], message: 'Vui lòng nhập địa chỉ nhận hàng' });
+  }
+  if (value.delivery_method === 'store' && !value.delivery_store) {
+    context.addIssue({ code: 'custom', path: ['delivery_store'], message: 'Vui lòng chọn cửa hàng nhận SIM' });
+  }
 });
 
 export const updateRegistrationGroupSchema = z.object({
