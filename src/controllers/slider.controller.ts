@@ -35,7 +35,10 @@ export const sliderController = {
   },
 
   async createItem(req: Request, res: Response) {
-    const dto = createSliderItemSchema.parse(req.body);
+    const dto = createSliderItemSchema.parse({
+      ...req.body,
+      image_url: req.file ? `/uploads/${req.file.filename}` : req.body.image_url,
+    });
     const item = await sliderService.createItem(dto);
     req.auditContext = { module: 'sliders', action: 'create', targetId: item.id, newValue: dto };
     sendCreated(res, item, 'Tạo slide thành công');
@@ -43,7 +46,10 @@ export const sliderController = {
 
   async updateItem(req: Request, res: Response) {
     const id = Number(req.params.id);
-    const dto = updateSliderItemSchema.parse(req.body);
+    const dto = updateSliderItemSchema.parse({
+      ...req.body,
+      ...(req.file ? { image_url: `/uploads/${req.file.filename}` } : {}),
+    });
     const item = await sliderService.updateItem(id, dto);
     req.auditContext = { module: 'sliders', action: 'update', targetId: id, newValue: dto };
     sendSuccess(res, item, 'Cập nhật slide thành công');

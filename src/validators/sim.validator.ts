@@ -25,7 +25,9 @@ export const createSimSchema = z.object({
 export const updateSimSchema = createSimSchema.partial();
 
 export const listSimQuerySchema = z.object({
+  q: z.string().trim().max(15).optional(),
   prefix: z.string().optional(),
+  catalog: simCatalogEnum.optional(),
   sim_type: simTypeEnum.optional(),
   price_range: z.string().optional(), // vd "0-500000"
 });

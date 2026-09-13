@@ -67,6 +67,10 @@ export const registrationService = {
         {
           customer_name: dto.customer_name,
           phone: dto.phone,
+          province: dto.province,
+          district: dto.district,
+          ward: dto.ward,
+          delivery_address: dto.delivery_address,
           note: dto.note ?? null,
         },
         { transaction: t },

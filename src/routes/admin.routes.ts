@@ -201,6 +201,7 @@ router.post(
 router.put(
   '/sliders/items/:id',
   checkRole([...CONTENT_ROLES]),
+  uploadImage.single('image'),
   auditLogger('sliders', 'update'),
   asyncHandler(sliderController.updateItem),
 );

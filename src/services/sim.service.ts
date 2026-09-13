@@ -41,12 +41,19 @@ const COLUMN_MAP = {
 
 export const simService = {
   async listPublic(
+    query: string | undefined,
     prefix: string | undefined,
+    catalog: string | undefined,
     simType: string | undefined,
     priceRange: string | undefined,
   ) {
     const where: Record<string, unknown> = { status: 'available' };
+    if (query) {
+      const pattern = query.replace(/\*/g, '%');
+      where.phone_number = { [Op.like]: `%${pattern}%` };
+    }
     if (prefix) where.prefix = prefix;
+    if (catalog) where.catalog = catalog;
     if (simType) where.sim_type = simType;
     if (priceRange) {
       const [min, max] = priceRange.split('-').map(Number);

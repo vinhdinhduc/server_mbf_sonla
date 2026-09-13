@@ -50,7 +50,11 @@ export const sliderService = {
 
   // --- Admin: Items - CRUD day du trong 1 zone ---
   async listItems(zoneId: number) {
-    return SliderItem.findAll({ where: { zone_id: zoneId }, order: [['display_order', 'ASC']] });
+    const items = await SliderItem.findAll({
+      where: { zone_id: zoneId },
+      order: [['display_order', 'ASC']],
+    });
+    return items.map((item) => attachImageUrls(item.toJSON(), ['image_url']));
   },
 
   async getItemById(id: number) {

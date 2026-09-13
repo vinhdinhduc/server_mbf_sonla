@@ -7,7 +7,13 @@ import { AppError } from '../utils/AppError';
 export const simController = {
   async listPublic(req: Request, res: Response) {
     const query = listSimQuerySchema.parse(req.query);
-    const rows = await simService.listPublic(query.prefix, query.sim_type, query.price_range);
+    const rows = await simService.listPublic(
+      query.q,
+      query.prefix,
+      query.catalog,
+      query.sim_type,
+      query.price_range,
+    );
     sendSuccess(res, rows);
   },
 
