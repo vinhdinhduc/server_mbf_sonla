@@ -15,6 +15,8 @@ export class WorkShift extends Model<
 
   declare user_id: number;
 
+  declare store_id: CreationOptional<number | null>;
+
   declare shift_date: string;
 
   declare start_time: string;
@@ -33,6 +35,7 @@ export function initWorkShiftModel(sequelize: Sequelize): typeof WorkShift {
     {
       id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
       user_id: { type: DataTypes.INTEGER, allowNull: false },
+      store_id: { type: DataTypes.INTEGER, allowNull: true },
       shift_date: { type: DataTypes.DATEONLY, allowNull: false },
       start_time: { type: DataTypes.TIME, allowNull: false },
       end_time: { type: DataTypes.TIME, allowNull: false },

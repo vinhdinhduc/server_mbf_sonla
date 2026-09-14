@@ -30,7 +30,10 @@ export const newsController = {
   },
 
   async create(req: Request, res: Response) {
-    const dto = createNewsSchema.parse(req.body);
+    const dto = createNewsSchema.parse({
+      ...req.body,
+      ...(req.file ? { thumbnail: `/uploads/${req.file.filename}` } : {}),
+    });
     const news = await newsService.create(dto, req.user!.id);
     req.auditContext = { module: 'news', action: 'create', targetId: news.id, newValue: dto };
     sendCreated(res, news, 'Tạo tin tức thành công');
@@ -38,7 +41,10 @@ export const newsController = {
 
   async update(req: Request, res: Response) {
     const id = Number(req.params.id);
-    const dto = updateNewsSchema.parse(req.body);
+    const dto = updateNewsSchema.parse({
+      ...req.body,
+      ...(req.file ? { thumbnail: `/uploads/${req.file.filename}` } : {}),
+    });
     const news = await newsService.update(id, dto);
     req.auditContext = { module: 'news', action: 'update', targetId: id, newValue: dto };
     sendSuccess(res, news, 'Cập nhật tin tức thành công');

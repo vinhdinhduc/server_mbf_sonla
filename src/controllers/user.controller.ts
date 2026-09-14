@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { userService } from '../services/user.service';
 import { createUserSchema, updateUserSchema } from '../validators/user.validator';
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
+import { buildImageUrl } from '../utils/buildImageUrl';
 
 export const userController = {
   async list(_req: Request, res: Response) {
@@ -15,7 +16,10 @@ export const userController = {
   },
 
   async create(req: Request, res: Response) {
-    const dto = createUserSchema.parse(req.body);
+    const dto = createUserSchema.parse({
+      ...req.body,
+      ...(req.file ? { avatar_url: buildImageUrl(`/uploads/${req.file.filename}`) } : {}),
+    });
     const user = await userService.create(dto);
     req.auditContext = {
       module: 'users',
@@ -28,7 +32,10 @@ export const userController = {
 
   async update(req: Request, res: Response) {
     const id = Number(req.params.id);
-    const dto = updateUserSchema.parse(req.body);
+    const dto = updateUserSchema.parse({
+      ...req.body,
+      ...(req.file ? { avatar_url: buildImageUrl(`/uploads/${req.file.filename}`) } : {}),
+    });
     const user = await userService.update(id, dto);
     req.auditContext = {
       module: 'users',

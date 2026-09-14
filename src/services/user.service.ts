@@ -2,18 +2,25 @@ import bcrypt from 'bcrypt';
 import { User } from '../models/User.model';
 import { AppError } from '../utils/AppError';
 import { CreateUserDto, UpdateUserDto } from '../validators/user.validator';
+import { buildImageUrl } from '../utils/buildImageUrl';
 
 const SALT_ROUNDS = 10;
 
+function presentUser(user: User) {
+  const data = user.toJSON() as Record<string, unknown>;
+  return { ...data, id: user.id, avatar_url: buildImageUrl(data.avatar_url as string | null | undefined) };
+}
+
 export const userService = {
   async list() {
-    return User.findAll({ order: [['id', 'ASC']] });
+    const users = await User.findAll({ order: [['id', 'ASC']] });
+    return users.map(presentUser);
   },
 
   async getById(id: number) {
     const user = await User.findByPk(id);
     if (!user) throw AppError.notFound('Không tìm thấy người dùng');
-    return user;
+    return presentUser(user);
   },
 
   async create(dto: CreateUserDto) {
@@ -27,6 +34,7 @@ export const userService = {
       full_name: dto.full_name,
       email: dto.email,
       phone: dto.phone,
+      avatar_url: dto.avatar_url || null,
       role: dto.role,
       status: dto.status,
     });

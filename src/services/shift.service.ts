@@ -1,10 +1,12 @@
 import { Op } from 'sequelize';
 import { WorkShift } from '../models/WorkShift.model';
 import { User } from '../models/User.model';
+import { Store } from '../models/Store.model';
 import { Setting } from '../models/Setting.model';
 import { AppError } from '../utils/AppError';
 import { CreateShiftDto, UpdateShiftDto } from '../validators/shift.validator';
 import { todayDateStringVietnam, currentTimeStringVietnam } from '../utils/vietnamTime';
+import { buildImageUrl } from '../utils/buildImageUrl';
 
 /**
  * Kiem tra overlap: 2 ca truc cua 2 giao dich vien KHAC NHAU trong CUNG 1
@@ -15,11 +17,13 @@ async function assertNoOverlap(
   shiftDate: Date | string,
   startTime: string,
   endTime: string,
+  storeId?: number | null,
   excludeShiftId?: number,
   excludeUserId?: number,
 ): Promise<void> {
   const where: Record<string, unknown> = {
     shift_date: shiftDate,
+    ...(storeId ? { store_id: storeId } : {}),
     start_time: { [Op.lt]: endTime },
     end_time: { [Op.gt]: startTime },
   };
@@ -43,7 +47,10 @@ async function assertNoOverlap(
 export const shiftService = {
   async list() {
     return WorkShift.findAll({
-      include: [{ model: User, as: 'staff' }],
+      include: [
+        { model: User, as: 'staff' },
+        { model: Store, as: 'store' },
+      ],
       order: [
         ['shift_date', 'DESC'],
         ['start_time', 'ASC'],
@@ -54,6 +61,7 @@ export const shiftService = {
   async getMySchedule(userId: number) {
     return WorkShift.findAll({
       where: { user_id: userId },
+      include: [{ model: Store, as: 'store' }],
       order: [['shift_date', 'DESC']],
     });
   },
@@ -65,10 +73,16 @@ export const shiftService = {
       throw AppError.badRequest('Chi duoc xep lich truc cho nhan vien co vai tro giao_dich_vien');
     }
 
-    await assertNoOverlap(dto.shift_date, dto.start_time, dto.end_time);
+    if (dto.store_id) {
+      const store = await Store.findByPk(dto.store_id);
+      if (!store) throw AppError.badRequest('Khong tim thay cua hang');
+    }
+
+    await assertNoOverlap(dto.shift_date, dto.start_time, dto.end_time, dto.store_id);
 
     return WorkShift.create({
       user_id: dto.user_id,
+      store_id: dto.store_id,
       shift_date: dto.shift_date as any,
       start_time: dto.start_time,
       end_time: dto.end_time,
@@ -84,8 +98,14 @@ export const shiftService = {
     const newDate = dto.shift_date ?? shift.shift_date;
     const newStart = dto.start_time ?? shift.start_time;
     const newEnd = dto.end_time ?? shift.end_time;
+    const newStoreId = dto.store_id ?? shift.store_id;
 
-    await assertNoOverlap(newDate, newStart, newEnd, id, shift.user_id);
+    if (dto.store_id) {
+      const store = await Store.findByPk(dto.store_id);
+      if (!store) throw AppError.badRequest('Khong tim thay cua hang');
+    }
+
+    await assertNoOverlap(newDate, newStart, newEnd, newStoreId, id, shift.user_id);
 
     await shift.update(dto as any);
     return shift;
@@ -101,7 +121,7 @@ export const shiftService = {
    * Logic hotline dong theo ca truc (muc 9, GET /api/public/current-duty-staff).
    * Bat buoc dung timezone Asia/Ho_Chi_Minh khi so sanh gio.
    */
-  async getCurrentDutyStaff(): Promise<{ name: string; phone: string }> {
+  async getCurrentDutyStaff(): Promise<{ name: string; phone: string; avatar_url: string | null }> {
     const today = todayDateStringVietnam();
     const nowTime = currentTimeStringVietnam();
 
@@ -116,10 +136,10 @@ export const shiftService = {
 
     if (shift && (shift as any).staff) {
       const staff = (shift as any).staff as User;
-      return { name: staff.full_name, phone: staff.phone };
+      return { name: staff.full_name, phone: staff.phone, avatar_url: buildImageUrl(staff.avatar_url) };
     }
 
     const hotlineSetting = await Setting.findOne({ where: { key: 'hotline' } });
-    return { name: 'Hotline MobiFone Son La', phone: hotlineSetting?.value ?? '' };
+    return { name: 'Hotline MobiFone Son La', phone: hotlineSetting?.value ?? '', avatar_url: null };
   },
 };

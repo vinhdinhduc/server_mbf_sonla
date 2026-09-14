@@ -13,6 +13,10 @@ import { scheduleBackupCron } from './scripts/backupCron';
 
 const app = express();
 
+// Khi chạy sau reverse proxy, Express lấy IP client từ X-Forwarded-For.
+// Local development vẫn trả về ::1 cho request từ chính máy này.
+app.set('trust proxy', env.NODE_ENV === 'production');
+
 // CORS - doc danh sach domain cho phep tu ALLOWED_ORIGINS (muc 14), khong hard-code
 app.use(
   cors({

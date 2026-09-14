@@ -13,6 +13,7 @@ import { registrationController } from '../controllers/registration.controller';
 import { contactController } from '../controllers/contact.controller';
 import { settingController } from '../controllers/setting.controller';
 import { chatbotController } from '../controllers/chatbot.controller';
+import { appointmentController } from '../controllers/appointment.controller';
 
 const router = Router();
 
@@ -35,6 +36,8 @@ router.get('/search', asyncHandler(searchController.search));
 router.get('/sliders/:zoneCode', asyncHandler(sliderController.getPublicByZoneCode));
 
 router.get('/current-duty-staff', asyncHandler(shiftController.currentDutyStaff));
+
+router.post('/appointments', asyncHandler(appointmentController.create));
 
 router.post('/newsletter/subscribe', asyncHandler(newsletterController.subscribe));
 

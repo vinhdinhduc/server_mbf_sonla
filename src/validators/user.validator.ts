@@ -9,6 +9,7 @@ export const createUserSchema = z.object({
   full_name: z.string().min(1).max(100),
   email: z.string().email().max(100),
   phone: z.string().min(9).max(20),
+  avatar_url: z.string().url().max(500).nullable().optional(),
   role: userRoleEnum,
   status: userStatusEnum.default('active'),
 });

@@ -23,6 +23,9 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
 
   declare phone: string;
 
+  /** URL anh dai dien, duoc dung khi giao dich vien dang trong ca truc. */
+  declare avatar_url: CreationOptional<string | null>;
+
   declare role: UserRole;
 
   declare status: CreationOptional<UserStatus>;
@@ -41,6 +44,7 @@ export function initUserModel(sequelize: Sequelize): typeof User {
       full_name: { type: DataTypes.STRING(100), allowNull: false },
       email: { type: DataTypes.STRING(100), allowNull: false },
       phone: { type: DataTypes.STRING(20), allowNull: false },
+      avatar_url: { type: DataTypes.STRING(500), allowNull: true },
       role: {
         type: DataTypes.ENUM('admin', 'chuyen_vien', 'giao_dich_vien', 'nhan_vien'),
         allowNull: false,

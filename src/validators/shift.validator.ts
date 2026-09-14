@@ -5,6 +5,7 @@ const timeRegex = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 export const createShiftSchema = z
   .object({
     user_id: z.coerce.number().int().positive(),
+    store_id: z.coerce.number().int().positive().optional(),
     shift_date: z.coerce.date(),
     start_time: z.string().regex(timeRegex, 'start_time phai dang HH:mm hoac HH:mm:ss'),
     end_time: z.string().regex(timeRegex, 'end_time phai dang HH:mm hoac HH:mm:ss'),
@@ -16,6 +17,7 @@ export const createShiftSchema = z
   });
 
 export const updateShiftSchema = z.object({
+  store_id: z.coerce.number().int().positive().optional(),
   shift_date: z.coerce.date().optional(),
   start_time: z.string().regex(timeRegex).optional(),
   end_time: z.string().regex(timeRegex).optional(),

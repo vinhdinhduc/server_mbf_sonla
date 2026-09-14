@@ -30,7 +30,10 @@ export const solutionController = {
   },
 
   async create(req: Request, res: Response) {
-    const dto = createSolutionSchema.parse(req.body);
+    const dto = createSolutionSchema.parse({
+      ...req.body,
+      ...(req.file ? { thumbnail: `/uploads/${req.file.filename}` } : {}),
+    });
     const sol = await solutionService.create(dto);
     req.auditContext = { module: 'solutions', action: 'create', targetId: sol.id, newValue: dto };
     sendCreated(res, sol, 'Tạo giải pháp thành công');
@@ -38,7 +41,10 @@ export const solutionController = {
 
   async update(req: Request, res: Response) {
     const id = Number(req.params.id);
-    const dto = updateSolutionSchema.parse(req.body);
+    const dto = updateSolutionSchema.parse({
+      ...req.body,
+      ...(req.file ? { thumbnail: `/uploads/${req.file.filename}` } : {}),
+    });
     const sol = await solutionService.update(id, dto);
     req.auditContext = { module: 'solutions', action: 'update', targetId: id, newValue: dto };
     sendSuccess(res, sol, 'Cập nhật giải pháp thành công');

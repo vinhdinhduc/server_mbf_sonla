@@ -18,6 +18,7 @@ import { registrationController } from '../controllers/registration.controller';
 import { contactController } from '../controllers/contact.controller';
 import { settingController } from '../controllers/setting.controller';
 import { auditLogController } from '../controllers/auditLog.controller';
+import { appointmentController } from '../controllers/appointment.controller';
 
 const router = Router();
 
@@ -35,12 +36,14 @@ router.get('/users/:id', checkRole([...ADMIN_ONLY]), asyncHandler(userController
 router.post(
   '/users',
   checkRole([...ADMIN_ONLY]),
+  uploadImage.single('avatar'),
   auditLogger('users', 'create'),
   asyncHandler(userController.create),
 );
 router.put(
   '/users/:id',
   checkRole([...ADMIN_ONLY]),
+  uploadImage.single('avatar'),
   auditLogger('users', 'update'),
   asyncHandler(userController.update),
 );
@@ -57,12 +60,14 @@ router.get('/news/:id', checkRole([...CONTENT_ROLES]), asyncHandler(newsControll
 router.post(
   '/news',
   checkRole([...CONTENT_ROLES]),
+  uploadImage.single('image'),
   auditLogger('news', 'create'),
   asyncHandler(newsController.create),
 );
 router.put(
   '/news/:id',
   checkRole([...CONTENT_ROLES]),
+  uploadImage.single('image'),
   auditLogger('news', 'update'),
   asyncHandler(newsController.update),
 );
@@ -134,12 +139,14 @@ router.get(
 router.post(
   '/solutions',
   checkRole([...CONTENT_ROLES]),
+  uploadImage.single('image'),
   auditLogger('solutions', 'create'),
   asyncHandler(solutionController.create),
 );
 router.put(
   '/solutions/:id',
   checkRole([...CONTENT_ROLES]),
+  uploadImage.single('image'),
   auditLogger('solutions', 'update'),
   asyncHandler(solutionController.update),
 );
@@ -268,6 +275,18 @@ router.patch(
   checkRole([...REGISTRATION_ROLES]),
   auditLogger('contacts', 'update'),
   asyncHandler(contactController.updateStatus),
+);
+
+router.get(
+  '/appointments',
+  checkRole([...REGISTRATION_ROLES]),
+  asyncHandler(appointmentController.list),
+);
+router.patch(
+  '/appointments/:id',
+  checkRole([...REGISTRATION_ROLES]),
+  auditLogger('store_appointments', 'update'),
+  asyncHandler(appointmentController.updateStatus),
 );
 
 // ============== Settings - chi admin ==============

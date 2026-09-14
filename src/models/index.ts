@@ -15,6 +15,7 @@ import { initSliderZoneModel, SliderZone } from './SliderZone.model';
 import { initSliderItemModel, SliderItem } from './SliderItem.model';
 import { initNewsletterSubscriberModel, NewsletterSubscriber } from './NewsletterSubscriber.model';
 import { initWorkShiftModel, WorkShift } from './WorkShift.model';
+import { initStoreAppointmentModel, StoreAppointment } from './StoreAppointment.model';
 
 // 1. Khoi tao tat ca model tren cung 1 Sequelize instance
 initUserModel(sequelize);
@@ -33,6 +34,7 @@ initSliderZoneModel(sequelize);
 initSliderItemModel(sequelize);
 initNewsletterSubscriberModel(sequelize);
 initWorkShiftModel(sequelize);
+initStoreAppointmentModel(sequelize);
 
 // 2. Khai bao association (hasMany / belongsTo) dung theo muc 5.17
 
@@ -69,10 +71,17 @@ AuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 // work_shifts.user_id -> users.id (phai la role giao_dich_vien, kiem tra o Service)
 User.hasMany(WorkShift, { foreignKey: 'user_id', as: 'shifts' });
 WorkShift.belongsTo(User, { foreignKey: 'user_id', as: 'staff' });
+WorkShift.belongsTo(Store, { foreignKey: 'store_id', as: 'store' });
+Store.hasMany(WorkShift, { foreignKey: 'store_id', as: 'shifts' });
 
 // work_shifts.created_by -> users.id (admin nao xep lich)
 User.hasMany(WorkShift, { foreignKey: 'created_by', as: 'createdShifts' });
 WorkShift.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+Store.hasMany(StoreAppointment, { foreignKey: 'store_id', as: 'appointments' });
+StoreAppointment.belongsTo(Store, { foreignKey: 'store_id', as: 'store' });
+User.hasMany(StoreAppointment, { foreignKey: 'assigned_to', as: 'assignedAppointments' });
+StoreAppointment.belongsTo(User, { foreignKey: 'assigned_to', as: 'assignee' });
 
 export {
   sequelize,
@@ -92,4 +101,5 @@ export {
   SliderItem,
   NewsletterSubscriber,
   WorkShift,
+  StoreAppointment,
 };

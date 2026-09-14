@@ -1,4 +1,3 @@
-import { Op } from 'sequelize';
 import { SliderZone } from '../models/SliderZone.model';
 import { SliderItem } from '../models/SliderItem.model';
 import { AppError } from '../utils/AppError';
@@ -10,20 +9,15 @@ import {
 import { attachImageUrls } from '../utils/buildImageUrl';
 
 export const sliderService = {
-  /** GET /api/public/sliders/:zoneCode - chi tra items dang active va trong khoang start-end */
+  /** GET /api/public/sliders/:zoneCode - chi tra cac item dang duoc bat */
   async getPublicByZoneCode(zoneCode: string) {
     const zone = await SliderZone.findOne({ where: { code: zoneCode, status: 'active' } });
     if (!zone) throw AppError.notFound('Khong tim thay khu vuc slider');
 
-    const now = new Date();
     const items = await SliderItem.findAll({
       where: {
         zone_id: zone.id,
         status: 'active',
-        [Op.and]: [
-          { [Op.or]: [{ start_date: null }, { start_date: { [Op.lte]: now } }] },
-          { [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: now } }] },
-        ],
       },
       order: [['display_order', 'ASC']],
     });
