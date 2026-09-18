@@ -19,6 +19,10 @@ export class AiChatLog extends Model<
 
   declare ai_response: string;
 
+  declare was_helpful: CreationOptional<boolean | null>;
+
+  declare flagged_for_review: CreationOptional<boolean>;
+
   declare ip_address: string;
 
   declare created_at: CreationOptional<Date>;
@@ -31,6 +35,8 @@ export function initAiChatLogModel(sequelize: Sequelize): typeof AiChatLog {
       session_id: { type: DataTypes.STRING(100), allowNull: false },
       user_message: { type: DataTypes.TEXT, allowNull: false },
       ai_response: { type: DataTypes.TEXT, allowNull: false },
+      was_helpful: { type: DataTypes.BOOLEAN, allowNull: true },
+      flagged_for_review: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       ip_address: { type: DataTypes.STRING(45), allowNull: false },
       created_at: DataTypes.DATE,
     },

@@ -4,6 +4,7 @@
   "description": "Backend REST API cho Website MobiFone Chi nhánh Sơn La",
   "main": "dist/app.js",
   "scripts": {
+    "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean-dev-port.ps1",
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/app.js",

@@ -19,16 +19,40 @@ import { contactController } from '../controllers/contact.controller';
 import { settingController } from '../controllers/setting.controller';
 import { auditLogController } from '../controllers/auditLog.controller';
 import { appointmentController } from '../controllers/appointment.controller';
+import { aiController } from '../controllers/ai.controller';
 
 const router = Router();
 
 const ADMIN_ONLY = ['admin'] as const;
 const CONTENT_ROLES = ['admin', 'chuyen_vien'] as const;
 const REGISTRATION_ROLES = ['admin', 'chuyen_vien', 'giao_dich_vien', 'nhan_vien'] as const;
+const AI_ROLES = ['admin'] as const;
 
 // Tat ca route /api/admin/* deu di qua authMiddleware (verify JWT).
 // checkRole duoc gan RIENG cho tung route theo dung ma tran phan quyen (muc 4).
 router.use(authMiddleware);
+
+router.get('/ai-settings', checkRole([...AI_ROLES]), asyncHandler(aiController.getSettings));
+router.put('/ai-settings', checkRole([...AI_ROLES]), asyncHandler(aiController.updateSettings));
+router.post(
+  '/ai-settings/test-connection',
+  checkRole([...AI_ROLES]),
+  asyncHandler(aiController.testConnection),
+);
+router.get('/ai-knowledge', checkRole([...AI_ROLES]), asyncHandler(aiController.listKnowledge));
+router.post('/ai-knowledge', checkRole([...AI_ROLES]), asyncHandler(aiController.createKnowledge));
+router.put(
+  '/ai-knowledge/:id',
+  checkRole([...AI_ROLES]),
+  asyncHandler(aiController.updateKnowledge),
+);
+router.delete(
+  '/ai-knowledge/:id',
+  checkRole([...AI_ROLES]),
+  asyncHandler(aiController.deleteKnowledge),
+);
+router.get('/ai-chat-logs', checkRole([...AI_ROLES]), asyncHandler(aiController.listLogs));
+router.put('/ai-chat-logs/:id', checkRole([...AI_ROLES]), asyncHandler(aiController.updateLog));
 
 // ============== Users - chi admin ==============
 router.get('/users', checkRole([...ADMIN_ONLY]), asyncHandler(userController.list));

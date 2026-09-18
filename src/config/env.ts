@@ -17,6 +17,7 @@ const envSchema = z.object({
 
   JWT_SECRET: z.string().min(16, 'JWT_SECRET phai co it nhat 16 ky tu'),
   JWT_EXPIRES_IN: z.string().default('7d'),
+  APP_SECRET_KEY: z.string().min(32).default('change-this-app-secret-key-before-production-32'),
 
   ALLOWED_ORIGINS: z.string().min(1),
 

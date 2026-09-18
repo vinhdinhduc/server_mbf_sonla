@@ -16,6 +16,11 @@ import { initSliderItemModel, SliderItem } from './SliderItem.model';
 import { initNewsletterSubscriberModel, NewsletterSubscriber } from './NewsletterSubscriber.model';
 import { initWorkShiftModel, WorkShift } from './WorkShift.model';
 import { initStoreAppointmentModel, StoreAppointment } from './StoreAppointment.model';
+import { initSolutionFeatureModel, SolutionFeature } from './SolutionFeature.model';
+import { initSolutionPricingModel, SolutionPricing } from './SolutionPricing.model';
+import { initSolutionFaqModel, SolutionFaq } from './SolutionFaq.model';
+import { initSolutionGalleryModel, SolutionGallery } from './SolutionGallery.model';
+import { initAiKnowledgeEntryModel, AiKnowledgeEntry } from './AiKnowledgeEntry.model';
 
 // 1. Khoi tao tat ca model tren cung 1 Sequelize instance
 initUserModel(sequelize);
@@ -35,6 +40,11 @@ initSliderItemModel(sequelize);
 initNewsletterSubscriberModel(sequelize);
 initWorkShiftModel(sequelize);
 initStoreAppointmentModel(sequelize);
+initSolutionFeatureModel(sequelize);
+initSolutionPricingModel(sequelize);
+initSolutionFaqModel(sequelize);
+initSolutionGalleryModel(sequelize);
+initAiKnowledgeEntryModel(sequelize);
 
 // 2. Khai bao association (hasMany / belongsTo) dung theo muc 5.17
 
@@ -83,6 +93,15 @@ StoreAppointment.belongsTo(Store, { foreignKey: 'store_id', as: 'store' });
 User.hasMany(StoreAppointment, { foreignKey: 'assigned_to', as: 'assignedAppointments' });
 StoreAppointment.belongsTo(User, { foreignKey: 'assigned_to', as: 'assignee' });
 
+Solution.hasMany(SolutionFeature, { foreignKey: 'solution_id', as: 'features' });
+SolutionFeature.belongsTo(Solution, { foreignKey: 'solution_id', as: 'solution' });
+Solution.hasMany(SolutionPricing, { foreignKey: 'solution_id', as: 'pricing' });
+SolutionPricing.belongsTo(Solution, { foreignKey: 'solution_id', as: 'solution' });
+Solution.hasMany(SolutionFaq, { foreignKey: 'solution_id', as: 'faqs' });
+SolutionFaq.belongsTo(Solution, { foreignKey: 'solution_id', as: 'solution' });
+Solution.hasMany(SolutionGallery, { foreignKey: 'solution_id', as: 'gallery' });
+SolutionGallery.belongsTo(Solution, { foreignKey: 'solution_id', as: 'solution' });
+
 export {
   sequelize,
   User,
@@ -102,4 +121,9 @@ export {
   NewsletterSubscriber,
   WorkShift,
   StoreAppointment,
+  SolutionFeature,
+  SolutionPricing,
+  SolutionFaq,
+  SolutionGallery,
+  AiKnowledgeEntry,
 };

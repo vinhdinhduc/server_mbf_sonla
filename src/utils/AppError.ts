@@ -27,6 +27,10 @@ export class AppError extends Error {
     return new AppError(message, 404);
   }
 
+  static tooManyRequests(message = 'Quá nhiều yêu cầu'): AppError {
+    return new AppError(message, 429);
+  }
+
   static internal(message = 'Lỗi hệ thống'): AppError {
     return new AppError(message, 500);
   }

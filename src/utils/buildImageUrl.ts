@@ -9,9 +9,19 @@ import { env } from '../config/env';
  */
 export function buildImageUrl(relativePathOrNull: string | null | undefined): string | null {
   if (!relativePathOrNull) return null;
-  if (/^https?:\/\//i.test(relativePathOrNull)) return relativePathOrNull;
-
   const base = env.APP_BASE_URL.replace(/\/+$/, '');
+  if (/^https?:\/\//i.test(relativePathOrNull)) {
+    try {
+      const absoluteUrl = new URL(relativePathOrNull);
+      if (!['localhost', '127.0.0.1', '::1'].includes(absoluteUrl.hostname)) {
+        return relativePathOrNull;
+      }
+      return `${base}${absoluteUrl.pathname}${absoluteUrl.search}`;
+    } catch {
+      return relativePathOrNull;
+    }
+  }
+
   const cleanPath = relativePathOrNull.replace(/^\/+/, '');
   return `${base}/${cleanPath}`;
 }

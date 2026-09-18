@@ -152,6 +152,8 @@ export const registrationService = {
     }
 
     await group.update(dto);
-    return group;
+    return RegistrationGroup.findByPk(group.id, {
+      include: [{ association: 'items' }],
+    });
   },
 };

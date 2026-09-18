@@ -7,11 +7,19 @@ import {
 } from '../validators/solution.validator';
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
 
+function parseNestedFields(body: Record<string, unknown>) {
+  const result = { ...body } as Record<string, unknown>;
+  for (const key of ['features', 'pricing', 'faqs', 'gallery']) {
+    if (typeof result[key] === 'string') result[key] = JSON.parse(result[key] as string);
+  }
+  return result;
+}
+
 export const solutionController = {
   async listPublic(req: Request, res: Response) {
     const query = listSolutionQuerySchema.parse(req.query);
-    const rows = await solutionService.listPublic(query.category);
-    sendSuccess(res, rows);
+    const result = await solutionService.listPublic(query);
+    sendSuccess(res, result);
   },
 
   async getPublicBySlug(req: Request, res: Response) {
@@ -31,7 +39,7 @@ export const solutionController = {
 
   async create(req: Request, res: Response) {
     const dto = createSolutionSchema.parse({
-      ...req.body,
+      ...parseNestedFields(req.body),
       ...(req.file ? { thumbnail: `/uploads/${req.file.filename}` } : {}),
     });
     const sol = await solutionService.create(dto);
@@ -42,7 +50,7 @@ export const solutionController = {
   async update(req: Request, res: Response) {
     const id = Number(req.params.id);
     const dto = updateSolutionSchema.parse({
-      ...req.body,
+      ...parseNestedFields(req.body),
       ...(req.file ? { thumbnail: `/uploads/${req.file.filename}` } : {}),
     });
     const sol = await solutionService.update(id, dto);

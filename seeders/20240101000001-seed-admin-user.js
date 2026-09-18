@@ -13,6 +13,12 @@ module.exports = {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    const [existingUsers] = await queryInterface.sequelize.query(
+      'SELECT id FROM users WHERE username = :username LIMIT 1',
+      { replacements: { username } },
+    );
+    if (existingUsers.length > 0) return;
+
     await queryInterface.bulkInsert('users', [
       {
         username,

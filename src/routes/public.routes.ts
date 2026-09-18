@@ -14,6 +14,7 @@ import { contactController } from '../controllers/contact.controller';
 import { settingController } from '../controllers/setting.controller';
 import { chatbotController } from '../controllers/chatbot.controller';
 import { appointmentController } from '../controllers/appointment.controller';
+import { aiRateLimit } from '../middlewares/aiRateLimit.middleware';
 
 const router = Router();
 
@@ -47,6 +48,7 @@ router.post('/contacts', asyncHandler(contactController.create));
 
 router.get('/settings', asyncHandler(settingController.listPublic));
 
-router.post('/chatbot/message', asyncHandler(chatbotController.message));
+router.post('/chatbot/message', aiRateLimit, asyncHandler(chatbotController.message));
+router.post('/chat', aiRateLimit, asyncHandler(chatbotController.message));
 
 export default router;

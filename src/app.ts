@@ -10,6 +10,11 @@ import publicRoutes from './routes/public.routes';
 import adminRoutes from './routes/admin.routes';
 import { errorHandlerMiddleware } from './middlewares/errorHandler.middleware';
 import { scheduleBackupCron } from './scripts/backupCron';
+import { chatbotController } from './controllers/chatbot.controller';
+import { chatbotMessageSchema } from './validators/chatbot.validator';
+import { aiRateLimit } from './middlewares/aiRateLimit.middleware';
+import { asyncHandler } from './utils/asyncHandler';
+import { sendSuccess } from './utils/apiResponse';
 
 const app = express();
 
@@ -37,6 +42,15 @@ app.get('/health', (_req: Request, res: Response) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/public', publicRoutes);
+app.post(
+  '/api/chat',
+  aiRateLimit,
+  asyncHandler(async (req, res) => {
+    const dto = chatbotMessageSchema.parse(req.body);
+    const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+    sendSuccess(res, await chatbotController.messageResult(dto.session_id, dto.message, ip));
+  }),
+);
 app.use('/api/admin', adminRoutes);
 
 // 404 handler cho route khong ton tai
