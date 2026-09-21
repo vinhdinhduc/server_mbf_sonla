@@ -9,27 +9,58 @@ export const simCatalogEnum = z.enum([
   'esim',
 ]);
 export const simTypeEnum = z.enum(['tam_hoa', 'tu_quy', 'phat_loc', 'than_tai', 'thuong']);
-export const simStatusEnum = z.enum(['available', 'reserved', 'sold']);
+export const simStatusEnum = z.enum(['available', 'reserved', 'sold', 'hidden']);
+export const subscriptionTypeEnum = z.enum(['prepaid', 'postpaid']);
 
 export const createSimSchema = z.object({
-  phone_number: z.string().min(9).max(15),
-  prefix: z.string().min(2).max(5),
+  phone_number: z.string().regex(/^0\d{9}$/, 'Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0'),
+  subscription_type: subscriptionTypeEnum,
   catalog: simCatalogEnum,
   sim_type: simTypeEnum,
-  price: z.coerce.number().nonnegative(),
+  price: z.coerce.number().nonnegative().optional().nullable(),
   bundle_note: z.string().max(255).optional().nullable(),
-  commitment_months: z.coerce.number().int().nonnegative().optional().nullable(),
+  commitment_months: z.coerce.number().int().min(0).max(36).optional().nullable(),
   status: simStatusEnum.default('available'),
 });
 
 export const updateSimSchema = createSimSchema.partial();
 
 export const listSimQuerySchema = z.object({
-  q: z.string().trim().max(15).optional(),
+  q: z.string().trim().max(10).regex(/^[0-9*]+$/, 'Chỉ được nhập chữ số và dấu *').optional(),
   prefix: z.string().optional(),
   catalog: simCatalogEnum.optional(),
   sim_type: simTypeEnum.optional(),
   price_range: z.string().optional(), // vd "0-500000"
+  type: subscriptionTypeEnum.default('postpaid'),
+});
+
+export const listAdminSimQuerySchema = z.object({
+  q: z.string().trim().max(10).regex(/^[0-9*]+$/, 'Chỉ được nhập chữ số và dấu *').optional(),
+  prefix: z.string().regex(/^0\d{2}$/).optional(),
+  catalog: simCatalogEnum.optional(),
+  sim_type: simTypeEnum.optional(),
+  type: subscriptionTypeEnum.optional(),
+  status: simStatusEnum.optional(),
+  page: z.coerce.number().int().positive().default(1),
+  page_size: z.coerce.number().int().positive().max(50).default(20),
+  sort: z.enum(['created_at', 'phone_number', 'status']).default('created_at'),
+  direction: z.enum(['asc', 'desc']).default('desc'),
+});
+
+export const exportSimQuerySchema = listAdminSimQuerySchema
+  .omit({ page: true, page_size: true, sort: true, direction: true })
+  .extend({
+    format: z.enum(['xlsx', 'csv']).default('xlsx'),
+    scope: z.enum(['filtered', 'all']).default('filtered'),
+  });
+
+export const bulkSimStatusSchema = z.object({
+  ids: z.array(z.coerce.number().int().positive()).min(1).max(1000),
+  status: simStatusEnum,
+});
+
+export const bulkSimDeleteSchema = z.object({
+  ids: z.array(z.coerce.number().int().positive()).min(1).max(1000),
 });
 
 export type CreateSimDto = z.infer<typeof createSimSchema>;

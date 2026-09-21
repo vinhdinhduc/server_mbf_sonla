@@ -7,7 +7,7 @@ import {
   CreationOptional,
 } from 'sequelize';
 
-export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout';
+export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout' | 'export';
 
 export class AuditLog extends Model<InferAttributes<AuditLog>, InferCreationAttributes<AuditLog>> {
   declare id: CreationOptional<number>;
@@ -37,7 +37,7 @@ export function initAuditLogModel(sequelize: Sequelize): typeof AuditLog {
       id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
       user_id: { type: DataTypes.INTEGER, allowNull: true },
       action: {
-        type: DataTypes.ENUM('create', 'update', 'delete', 'login', 'logout'),
+        type: DataTypes.ENUM('create', 'update', 'delete', 'login', 'logout', 'export'),
         allowNull: false,
       },
       module: { type: DataTypes.STRING(50), allowNull: false },

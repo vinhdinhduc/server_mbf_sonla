@@ -11,10 +11,10 @@ import { todayDateStringVietnam } from '../utils/vietnamTime';
 export const appointmentService = {
   async create(dto: CreateAppointmentDto) {
     if (dto.appointment_date < todayDateStringVietnam()) {
-      throw AppError.badRequest('Khong the dat lich vao ngay da qua');
+      throw AppError.badRequest('Không thể đặt lịch vào ngày đã qua');
     }
     const store = await Store.findByPk(dto.store_id);
-    if (!store) throw AppError.badRequest('Khong tim thay cua hang');
+    if (!store) throw AppError.badRequest('Không tìm thấy cửa hàng');
 
     const shift = await WorkShift.findOne({
       where: {
@@ -53,9 +53,9 @@ export const appointmentService = {
 
   async updateStatus(id: number, dto: UpdateAppointmentDto, currentUser: AuthUserPayload) {
     const appointment = await StoreAppointment.findByPk(id);
-    if (!appointment) throw AppError.notFound('Khong tim thay lich hen');
+    if (!appointment) throw AppError.notFound('Không tìm thấy lịch hẹn');
     if (currentUser.role === 'giao_dich_vien' && appointment.assigned_to !== currentUser.id) {
-      throw AppError.forbidden('Ban khong duoc phep cap nhat lich hen nay');
+      throw AppError.forbidden('Bạn không được phép cập nhật lịch hẹn này');
     }
     await appointment.update(dto);
     return appointment;

@@ -3,7 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { checkRole } from '../middlewares/checkRole.middleware';
 import { auditLogger } from '../middlewares/auditLogger.middleware';
-import { uploadImage, uploadExcel } from '../config/multer';
+import { uploadImage, uploadExcel, validateUploadedImage } from '../config/multer';
 
 import { userController } from '../controllers/user.controller';
 import { newsController } from '../controllers/news.controller';
@@ -61,6 +61,7 @@ router.post(
   '/users',
   checkRole([...ADMIN_ONLY]),
   uploadImage.single('avatar'),
+  validateUploadedImage,
   auditLogger('users', 'create'),
   asyncHandler(userController.create),
 );
@@ -68,6 +69,7 @@ router.put(
   '/users/:id',
   checkRole([...ADMIN_ONLY]),
   uploadImage.single('avatar'),
+  validateUploadedImage,
   auditLogger('users', 'update'),
   asyncHandler(userController.update),
 );
@@ -85,6 +87,7 @@ router.post(
   '/news',
   checkRole([...CONTENT_ROLES]),
   uploadImage.single('image'),
+  validateUploadedImage,
   auditLogger('news', 'create'),
   asyncHandler(newsController.create),
 );
@@ -92,6 +95,7 @@ router.put(
   '/news/:id',
   checkRole([...CONTENT_ROLES]),
   uploadImage.single('image'),
+  validateUploadedImage,
   auditLogger('news', 'update'),
   asyncHandler(newsController.update),
 );
@@ -126,7 +130,29 @@ router.delete(
 
 // ============== Sims - admin & chuyen_vien ==============
 router.get('/sims', checkRole([...CONTENT_ROLES]), asyncHandler(simController.listAdmin));
+router.get(
+  '/sims/export',
+  checkRole(['admin', 'giao_dich_vien']),
+  asyncHandler(simController.exportData),
+);
+router.get(
+  '/sims/import-template',
+  checkRole(['admin']),
+  asyncHandler(simController.downloadImportTemplate),
+);
 router.get('/sims/:id', checkRole([...CONTENT_ROLES]), asyncHandler(simController.getById));
+router.patch(
+  '/sims/bulk-status',
+  checkRole(['admin', 'giao_dich_vien']),
+  auditLogger('sims', 'update'),
+  asyncHandler(simController.bulkUpdateStatus),
+);
+router.delete(
+  '/sims/bulk',
+  checkRole(['admin']),
+  auditLogger('sims', 'delete'),
+  asyncHandler(simController.bulkRemove),
+);
 router.post(
   '/sims',
   checkRole([...CONTENT_ROLES]),
@@ -164,6 +190,7 @@ router.post(
   '/solutions',
   checkRole([...CONTENT_ROLES]),
   uploadImage.single('image'),
+  validateUploadedImage,
   auditLogger('solutions', 'create'),
   asyncHandler(solutionController.create),
 );
@@ -171,6 +198,7 @@ router.put(
   '/solutions/:id',
   checkRole([...CONTENT_ROLES]),
   uploadImage.single('image'),
+  validateUploadedImage,
   auditLogger('solutions', 'update'),
   asyncHandler(solutionController.update),
 );
@@ -226,6 +254,7 @@ router.post(
   '/sliders/items',
   checkRole([...CONTENT_ROLES]),
   uploadImage.single('image'),
+  validateUploadedImage,
   auditLogger('sliders', 'create'),
   asyncHandler(sliderController.createItem),
 );
@@ -233,6 +262,7 @@ router.put(
   '/sliders/items/:id',
   checkRole([...CONTENT_ROLES]),
   uploadImage.single('image'),
+  validateUploadedImage,
   auditLogger('sliders', 'update'),
   asyncHandler(sliderController.updateItem),
 );

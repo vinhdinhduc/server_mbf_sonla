@@ -16,7 +16,7 @@ export class ZnsNotifier implements INotifier {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async send(recipient: string, templateCode: string, data: Record<string, any>): Promise<void> {
     throw new Error(
-      'ZnsNotifier chua duoc trien khai o giai doan 1. Vui long dung EmailNotifier (xem config/notifier.ts).',
+      'ZnsNotifier chưa được triển khai. Vui lòng dùng EmailNotifier (xem config/notifier.ts).',
     );
   }
 }

@@ -15,7 +15,7 @@ export const storeService = {
 
   async getById(id: number) {
     const store = await Store.findByPk(id);
-    if (!store) throw AppError.notFound('Khong tim thay cua hang');
+    if (!store) throw AppError.notFound('Không tìm thấy cửa hàng');
     return store;
   },
 

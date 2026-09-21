@@ -19,15 +19,15 @@ export const authService = {
   async login(dto: LoginDto): Promise<LoginResult> {
     const user = await User.scope('withPassword').findOne({ where: { username: dto.username } });
     if (!user) {
-      throw AppError.unauthorized('Ten dang nhap hoac mat khau khong dung');
+      throw AppError.unauthorized('Tên đăng nhập hoặc mật khẩu không đúng');
     }
     if (user.status === 'locked') {
-      throw AppError.forbidden('Tai khoan da bi khoa, vui long lien he quan tri vien');
+      throw AppError.forbidden('Tài khoản đã bị khóa, vui lòng liên hệ quản trị viên');
     }
 
     const isMatch = await bcrypt.compare(dto.password, user.password_hash);
     if (!isMatch) {
-      throw AppError.unauthorized('Ten dang nhap hoac mat khau khong dung');
+      throw AppError.unauthorized('Tên đăng nhập hoặc mật khẩu không đúng');
     }
 
     const token = jwt.sign(
@@ -50,7 +50,7 @@ export const authService = {
   async getMe(userId: number) {
     const user = await User.findByPk(userId);
     if (!user) {
-      throw AppError.notFound('Khong tim thay nguoi dung');
+      throw AppError.notFound('Không tìm thấy người dùng');
     }
     return user;
   },

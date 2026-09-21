@@ -31,7 +31,12 @@ describe('registration.service - submitCart', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedSetting.getRawValue.mockResolvedValue('admin@mobifone-sonla.vn');
-    mockedSim.findByPk.mockResolvedValue({ id: 1, phone_number: '0900123456', price: 500000 } as any);
+    mockedSim.findByPk.mockResolvedValue({
+      id: 1,
+      phone_number: '0900123456',
+      subscription_type: 'postpaid',
+    } as any);
+    mockedSim.update.mockResolvedValue([1] as any);
   });
 
   const dto = {
@@ -57,12 +62,24 @@ describe('registration.service - submitCart', () => {
     expect(mockedSequelize.transaction).toHaveBeenCalledTimes(1);
     expect(mockedGroup.create).toHaveBeenCalledTimes(1);
     expect(mockedItem.bulkCreate).toHaveBeenCalledTimes(1);
+    expect(mockedSim.update).toHaveBeenCalledTimes(1);
 
     const bulkCreateArg = mockedItem.bulkCreate.mock.calls[0][0] as any[];
     expect(bulkCreateArg).toHaveLength(dto.items.length);
     bulkCreateArg.forEach((row) => {
       expect(row.registration_group_id).toBe(fakeGroup.id);
     });
+  });
+
+  it('từ chối khi sim đã được người khác giữ trước', async () => {
+    mockedSequelize.transaction.mockImplementation(async (cb: any) => cb('FAKE_TRANSACTION'));
+    mockedGroup.create.mockResolvedValue({ id: 30 } as any);
+    mockedSim.update.mockResolvedValue([0] as any);
+
+    await expect(registrationService.submitCart(dto as any)).rejects.toThrow(
+      'Số vừa được chọn bởi người khác',
+    );
+    expect(mockedItem.bulkCreate).not.toHaveBeenCalled();
   });
 
   it('rollback dung khi co loi giua chung (bulkCreate that bai)', async () => {

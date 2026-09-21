@@ -4,9 +4,24 @@ module.exports = {
     await queryInterface.bulkInsert(
       'settings',
       [
-        { key: 'site_name', value: 'MobiFone Chi nhanh Son La', group: 'general', updated_at: now },
+        { key: 'site_name', value: 'MobiFone Chi nhánh Sơn La', group: 'general', updated_at: now },
         { key: 'site_logo', value: '/uploads/default-logo.png', group: 'general', updated_at: now },
         { key: 'hotline', value: '18001090', group: 'general', updated_at: now },
+        { key: 'contact_email', value: 'sonla@mobifone.vn', group: 'general', updated_at: now },
+        {
+          key: 'contact_address',
+          value: 'Tổ 3, Phường Chiềng Lề, tỉnh Sơn La',
+          group: 'general',
+          updated_at: now,
+        },
+        {
+          key: 'working_hours',
+          value: 'Thứ Hai – Thứ Bảy: 07:30 – 17:30',
+          group: 'general',
+          updated_at: now,
+        },
+        { key: 'sim_activation_fee_prepaid', value: '50000', group: 'general', updated_at: now },
+        { key: 'sim_activation_fee_postpaid', value: '60000', group: 'general', updated_at: now },
         {
           key: 'notify_email',
           value: 'admin@mobifone-sonla.vn',
@@ -21,14 +36,14 @@ module.exports = {
         },
         {
           key: 'footer_address',
-          value: 'Tổ 3, Phường Chiềng Lề, Thành phố Sơn La, tỉnh Sơn La',
+          value: 'Tổ 3, Phường Chiềng Lề, tỉnh Sơn La',
           group: 'general',
           updated_at: now,
         },
         { key: 'footer_email', value: 'sonla@mobifone.vn', group: 'general', updated_at: now },
         {
           key: 'footer_description',
-          value: 'Tổ 3, Phường Chiềng Lề, Thành phố Sơn La, tỉnh Sơn La',
+          value: 'Tổ 3, Phường Chiềng Lề, tỉnh Sơn La',
           group: 'general',
           updated_at: now,
         },
@@ -49,7 +64,7 @@ module.exports = {
         {
           key: 'ai_system_prompt',
           value:
-            'Ban la tro ly ao cua MobiFone chi nhanh Son La, tra loi ngan gon, lich su, chi dua tren du lieu duoc cung cap.',
+            'Bạn là trợ lý ảo của MobiFone Chi nhánh Sơn La. Hãy trả lời ngắn gọn, lịch sự và chỉ dựa trên dữ liệu được cung cấp.',
           group: 'ai',
           updated_at: now,
         },

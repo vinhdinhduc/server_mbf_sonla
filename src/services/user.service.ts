@@ -4,7 +4,7 @@ import { AppError } from '../utils/AppError';
 import { CreateUserDto, UpdateUserDto } from '../validators/user.validator';
 import { buildImageUrl } from '../utils/buildImageUrl';
 
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
 function presentUser(user: User) {
   const data = user.toJSON() as Record<string, unknown>;
@@ -41,9 +41,23 @@ export const userService = {
     return this.getById(user.id);
   },
 
-  async update(id: number, dto: UpdateUserDto) {
+  async update(id: number, dto: UpdateUserDto, actorId: number) {
     const user = await User.scope('withPassword').findByPk(id);
     if (!user) throw AppError.notFound('Không tìm thấy người dùng');
+
+    if (id === actorId && (dto.status === 'locked' || (dto.role && dto.role !== user.role))) {
+      throw AppError.badRequest('Bạn không thể tự khóa hoặc hạ quyền tài khoản của chính mình');
+    }
+    const removesActiveAdmin =
+      user.role === 'admin' &&
+      user.status === 'active' &&
+      (dto.status === 'locked' || (dto.role !== undefined && dto.role !== 'admin'));
+    if (removesActiveAdmin) {
+      const activeAdminCount = await User.count({ where: { role: 'admin', status: 'active' } });
+      if (activeAdminCount <= 1) {
+        throw AppError.badRequest('Hệ thống phải luôn còn ít nhất một quản trị viên hoạt động');
+      }
+    }
 
     const updatePayload: Partial<User> = { ...dto } as Partial<User>;
     if (dto.password) {
@@ -55,9 +69,16 @@ export const userService = {
     return this.getById(id);
   },
 
-  async remove(id: number) {
+  async remove(id: number, actorId: number) {
     const user = await User.findByPk(id);
     if (!user) throw AppError.notFound('Không tìm thấy người dùng');
-    await user.destroy();
+    if (id === actorId) throw AppError.badRequest('Bạn không thể tự xóa tài khoản của chính mình');
+    if (user.role === 'admin' && user.status === 'active') {
+      const activeAdminCount = await User.count({ where: { role: 'admin', status: 'active' } });
+      if (activeAdminCount <= 1) {
+        throw AppError.badRequest('Hệ thống phải luôn còn ít nhất một quản trị viên hoạt động');
+      }
+    }
+    await user.update({ status: 'locked' });
   },
 };

@@ -13,11 +13,19 @@ export const contactService = {
       message: dto.message,
     });
 
-    const notifyEmail = await settingService.getRawValue('notify_email');
+    const [notifyEmail, branchName, hotline] = await Promise.all([
+      settingService.getRawValue('notify_email'),
+      settingService.getRawValue('site_name'),
+      settingService.getRawValue('hotline'),
+    ]);
     if (notifyEmail) {
-      await activeNotifier.send(notifyEmail, 'new_contact', dto).catch((err) => {
+      await activeNotifier.send(notifyEmail, 'new_contact', {
+        ...dto,
+        branch_name: branchName,
+        hotline,
+      }).catch((err) => {
         // eslint-disable-next-line no-console
-        console.error('Gui email thong bao lien he that bai:', err);
+        console.error('Gửi email thông báo liên hệ thất bại:', err);
       });
     }
 
@@ -40,7 +48,7 @@ export const contactService = {
 
   async updateStatus(id: number, dto: UpdateContactDto) {
     const contact = await Contact.findByPk(id);
-    if (!contact) throw AppError.notFound('Khong tim thay lien he');
+    if (!contact) throw AppError.notFound('Không tìm thấy liên hệ');
     await contact.update(dto);
     return contact;
   },

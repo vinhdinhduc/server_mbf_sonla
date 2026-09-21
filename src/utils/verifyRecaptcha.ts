@@ -28,6 +28,6 @@ export async function verifyRecaptcha(token: string): Promise<void> {
   const data = (await res.json()) as RecaptchaVerifyResponse;
 
   if (!data.success || (typeof data.score === 'number' && data.score < env.RECAPTCHA_MIN_SCORE)) {
-    throw AppError.badRequest('Xac thuc reCAPTCHA that bai, vui long thu lai');
+    throw AppError.badRequest('Xác thực reCAPTCHA thất bại, vui lòng thử lại');
   }
 }

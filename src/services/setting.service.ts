@@ -38,7 +38,7 @@ export const settingService = {
     const forbidden = dto.items.find((item) => FORBIDDEN_SETTING_KEYS.includes(item.key));
     if (forbidden) {
       throw AppError.badRequest(
-        `Khoa "${forbidden.key}" la bi mat, khong duoc phep luu vao bang settings - chi duoc cau hinh qua .env`,
+        `Khóa "${forbidden.key}" là bí mật, không được phép lưu vào bảng settings - chỉ được cấu hình qua .env`,
       );
     }
 

@@ -68,14 +68,14 @@ export const shiftService = {
 
   async create(dto: CreateShiftDto, createdBy: number) {
     const staff = await User.findByPk(dto.user_id);
-    if (!staff) throw AppError.badRequest('Khong tim thay nhan vien');
+    if (!staff) throw AppError.badRequest('Không tìm thấy nhân viên');
     if (staff.role !== 'giao_dich_vien') {
       throw AppError.badRequest('Chi duoc xep lich truc cho nhan vien co vai tro giao_dich_vien');
     }
 
     if (dto.store_id) {
       const store = await Store.findByPk(dto.store_id);
-      if (!store) throw AppError.badRequest('Khong tim thay cua hang');
+      if (!store) throw AppError.badRequest('Không tìm thấy cửa hàng');
     }
 
     await assertNoOverlap(dto.shift_date, dto.start_time, dto.end_time, dto.store_id);
@@ -93,7 +93,7 @@ export const shiftService = {
 
   async update(id: number, dto: UpdateShiftDto) {
     const shift = await WorkShift.findByPk(id);
-    if (!shift) throw AppError.notFound('Khong tim thay lich truc');
+    if (!shift) throw AppError.notFound('Không tìm thấy lịch trực');
 
     const newDate = dto.shift_date ?? shift.shift_date;
     const newStart = dto.start_time ?? shift.start_time;
@@ -102,7 +102,7 @@ export const shiftService = {
 
     if (dto.store_id) {
       const store = await Store.findByPk(dto.store_id);
-      if (!store) throw AppError.badRequest('Khong tim thay cua hang');
+      if (!store) throw AppError.badRequest('Không tìm thấy cửa hàng');
     }
 
     await assertNoOverlap(newDate, newStart, newEnd, newStoreId, id, shift.user_id);
@@ -113,7 +113,7 @@ export const shiftService = {
 
   async remove(id: number) {
     const shift = await WorkShift.findByPk(id);
-    if (!shift) throw AppError.notFound('Khong tim thay lich truc');
+    if (!shift) throw AppError.notFound('Không tìm thấy lịch trực');
     await shift.destroy();
   },
 
@@ -140,6 +140,6 @@ export const shiftService = {
     }
 
     const hotlineSetting = await Setting.findOne({ where: { key: 'hotline' } });
-    return { name: 'Hotline MobiFone Son La', phone: hotlineSetting?.value ?? '', avatar_url: null };
+    return { name: 'Hotline MobiFone Sơn La', phone: hotlineSetting?.value ?? '', avatar_url: null };
   },
 };

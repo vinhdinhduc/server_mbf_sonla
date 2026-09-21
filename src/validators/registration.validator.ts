@@ -14,7 +14,7 @@ export const submitCartSchema = z.object({
     .string()
     .min(9)
     .max(20)
-    .regex(/^[0-9+]+$/, 'So dien thoai khong hop le'),
+    .regex(/^[0-9+]+$/, 'Số điện thoại không hợp lệ'),
   email: z.string().email().max(150),
   note: z.string().optional().nullable(),
   delivery_method: z.enum(['address', 'store']),
@@ -23,8 +23,8 @@ export const submitCartSchema = z.object({
   province: z.literal('Sơn La'),
   ward: z.string().min(1).max(100),
   delivery_address: z.string().max(255).optional().nullable(),
-  items: z.array(submitCartItemSchema).min(1, 'Gio hang khong duoc de trong'),
-  recaptcha_token: z.string().min(1, 'Thieu recaptcha_token'),
+  items: z.array(submitCartItemSchema).min(1, 'Giỏ hàng không được để trống'),
+  recaptcha_token: z.string().min(1, 'Thiếu recaptcha_token'),
 }).superRefine((value, context) => {
   if (value.delivery_method === 'address') {
     if (!value.ward) context.addIssue({ code: 'custom', path: ['ward'], message: 'Vui lòng chọn xã/phường Sơn La' });

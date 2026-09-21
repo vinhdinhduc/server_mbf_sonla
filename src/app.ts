@@ -15,8 +15,12 @@ import { chatbotMessageSchema } from './validators/chatbot.validator';
 import { aiRateLimit } from './middlewares/aiRateLimit.middleware';
 import { asyncHandler } from './utils/asyncHandler';
 import { sendSuccess } from './utils/apiResponse';
+import { securityHeaders } from './middlewares/securityHeaders.middleware';
 
 const app = express();
+
+app.disable('x-powered-by');
+app.use(securityHeaders);
 
 // Khi chạy sau reverse proxy, Express lấy IP client từ X-Forwarded-For.
 // Local development vẫn trả về ::1 cho request từ chính máy này.
@@ -40,6 +44,11 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({ success: true, data: { status: 'ok' }, message: '' });
 });
 
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/public', publicRoutes);
+app.use('/api/v1/admin', adminRoutes);
+
+// Alias tương thích trong giai đoạn chuyển frontend sang API versioned.
 app.use('/api/auth', authRoutes);
 app.use('/api/public', publicRoutes);
 app.post(
@@ -55,7 +64,7 @@ app.use('/api/admin', adminRoutes);
 
 // 404 handler cho route khong ton tai
 app.use((_req: Request, res: Response) => {
-  res.status(404).json({ success: false, data: null, message: 'Khong tim thay duong dan API' });
+  res.status(404).json({ success: false, data: null, message: 'Không tìm thấy đường dẫn API' });
 });
 
 // Middleware xu ly loi tap trung - PHAI dat sau cung (muc 3.2)
@@ -67,7 +76,7 @@ async function bootstrap(): Promise<void> {
   app.listen(env.PORT, () => {
     // eslint-disable-next-line no-console
     console.log(
-      `🚀 Server dang chay tai ${env.APP_BASE_URL} (PORT=${env.PORT}, env=${env.NODE_ENV})`,
+      `🚀 Server đang lắng nghe cổng ${env.PORT}; URL công khai: ${env.APP_BASE_URL} (env=${env.NODE_ENV})`,
     );
   });
 }
@@ -75,7 +84,7 @@ async function bootstrap(): Promise<void> {
 if (require.main === module) {
   bootstrap().catch((err) => {
     // eslint-disable-next-line no-console
-    console.error('❌ Khong the khoi dong server:', err);
+    console.error('❌ Không thể khởi động máy chủ:', err);
     process.exit(1);
   });
 }

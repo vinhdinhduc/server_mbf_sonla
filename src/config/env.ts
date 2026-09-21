@@ -15,14 +15,14 @@ const envSchema = z.object({
   DB_USER: z.string().min(1),
   DB_PASSWORD: z.string().default(''),
 
-  JWT_SECRET: z.string().min(16, 'JWT_SECRET phai co it nhat 16 ky tu'),
+  JWT_SECRET: z.string().min(16, 'JWT_SECRET phải có ít nhất 16 ký tự'),
   JWT_EXPIRES_IN: z.string().default('7d'),
   APP_SECRET_KEY: z.string().min(32).default('change-this-app-secret-key-before-production-32'),
 
   ALLOWED_ORIGINS: z.string().min(1),
 
   SEED_ADMIN_USERNAME: z.string().default('admin'),
-  SEED_ADMIN_PASSWORD: z.string().min(6, 'SEED_ADMIN_PASSWORD phai co it nhat 6 ky tu'),
+  SEED_ADMIN_PASSWORD: z.string().min(6, 'SEED_ADMIN_PASSWORD phải có ít nhất 6 ký tự'),
 
   RECAPTCHA_SECRET_KEY: z.string().min(1),
   RECAPTCHA_SITE_KEY: z.string().min(1),
@@ -47,7 +47,7 @@ function loadEnv(): Env {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
     // eslint-disable-next-line no-console
-    console.error('❌ Bien moi truong khong hop le:');
+    console.error('❌ Biến môi trường không hợp lệ:');
     // eslint-disable-next-line no-console
     console.error(parsed.error.flatten().fieldErrors);
     process.exit(1);

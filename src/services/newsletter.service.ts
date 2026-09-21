@@ -26,7 +26,7 @@ export const newsletterService = {
   async exportToExcelBuffer(): Promise<Buffer> {
     const subscribers = await NewsletterSubscriber.findAll({ order: [['subscribed_at', 'DESC']] });
     if (subscribers.length === 0) {
-      throw AppError.notFound('Khong co du lieu de xuat');
+      throw AppError.notFound('Không có dữ liệu để xuất');
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -34,7 +34,7 @@ export const newsletterService = {
     sheet.columns = [
       { header: 'Email', key: 'email', width: 40 },
       { header: 'Trang thai', key: 'status', width: 20 },
-      { header: 'Ngay dang ky', key: 'subscribed_at', width: 25 },
+      { header: 'Ngày đăng ký', key: 'subscribed_at', width: 25 },
     ];
     subscribers.forEach((s) => {
       sheet.addRow({

@@ -7,7 +7,7 @@ import { AuthUserPayload } from '../types/express';
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
-    throw AppError.unauthorized('Thieu hoac sai dinh dang token');
+    throw AppError.unauthorized('Thiếu hoặc sai định dạng token');
   }
 
   const token = header.slice('Bearer '.length).trim();
@@ -17,6 +17,6 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
     req.user = { id: payload.id, username: payload.username, role: payload.role };
     next();
   } catch (err) {
-    throw AppError.unauthorized('Token khong hop le hoac da het han');
+    throw AppError.unauthorized('Token không hợp lệ hoặc đã hết hạn');
   }
 }

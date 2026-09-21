@@ -7,7 +7,7 @@ export const createContactSchema = z.object({
   phone: z.string().min(9).max(20),
   email: z.string().email().max(100),
   message: z.string().min(1),
-  recaptcha_token: z.string().min(1, 'Thieu recaptcha_token'),
+  recaptcha_token: z.string().min(1, 'Thiếu recaptcha_token'),
 });
 
 export const updateContactSchema = z.object({

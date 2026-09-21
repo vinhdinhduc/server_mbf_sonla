@@ -11,8 +11,8 @@ export const createAppointmentSchema = z.object({
     .max(20)
     .regex(/^[0-9+]+$/),
   store_id: z.coerce.number().int().positive(),
-  appointment_date: z.string().regex(dateRegex, 'appointment_date phai dang YYYY-MM-DD'),
-  appointment_time: z.string().regex(timeRegex, 'appointment_time phai dang HH:mm'),
+  appointment_date: z.string().regex(dateRegex, 'Ngày hẹn phải có dạng YYYY-MM-DD'),
+  appointment_time: z.string().regex(timeRegex, 'Giờ hẹn phải có dạng HH:mm'),
   note: z.string().max(2000).optional().nullable(),
 });
 

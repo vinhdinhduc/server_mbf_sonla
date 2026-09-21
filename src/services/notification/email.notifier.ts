@@ -7,42 +7,53 @@ import { INotifier } from './INotifier';
  * (1 nguoi code, khong can he thong template engine rieng), noi dung duoc
  * dung inline theo templateCode de giu don gian - de bao tri.
  */
-function renderTemplate(
+export function renderTemplate(
   templateCode: string,
   data: Record<string, any>,
 ): { subject: string; html: string } {
+  const escapeHtml = (value: unknown) =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  const branchName = String(data.branch_name ?? 'MobiFone Sơn La').replace(/[\r\n]/g, ' ');
+  const hotline = escapeHtml(data.hotline ?? '18001090');
   switch (templateCode) {
     case 'new_registration':
       return {
-        subject: `[MobiFone Son La] Co dang ky moi tu ${data.customer_name}`,
+        subject: `[${branchName}] Có đăng ký mới từ ${String(data.customer_name ?? '').replace(/[\r\n]/g, ' ')}`,
         html: `
-          <p>Co mot yeu cau dang ky moi tren website:</p>
+          <p>Có một yêu cầu đăng ký mới trên website:</p>
           <ul>
-            <li>Khach hang: ${data.customer_name}</li>
-            <li>Dien thoai: ${data.phone}</li>
-            <li>Ghi chu: ${data.note ?? ''}</li>
-            <li>So san pham: ${data.item_count}</li>
+            <li>Khách hàng: ${escapeHtml(data.customer_name)}</li>
+            <li>Điện thoại: ${escapeHtml(data.phone)}</li>
+            <li>Ghi chú: ${escapeHtml(data.note)}</li>
+            <li>Số sản phẩm: ${escapeHtml(data.item_count)}</li>
           </ul>
-          <p>Vui long dang nhap trang quan tri de xu ly.</p>
+          <p>Vui lòng đăng nhập trang quản trị để xử lý.</p>
+          <p>Hotline: ${hotline}</p>
         `,
       };
     case 'new_contact':
       return {
-        subject: `[MobiFone Son La] Co lien he moi tu ${data.name}`,
+        subject: `[${branchName}] Có liên hệ mới từ ${String(data.name ?? '').replace(/[\r\n]/g, ' ')}`,
         html: `
-          <p>Co mot lien he moi tu form website:</p>
+          <p>Có một liên hệ mới từ biểu mẫu website:</p>
           <ul>
-            <li>Ho ten: ${data.name}</li>
-            <li>Dien thoai: ${data.phone}</li>
-            <li>Email: ${data.email}</li>
-            <li>Noi dung: ${data.message}</li>
+            <li>Họ tên: ${escapeHtml(data.name)}</li>
+            <li>Điện thoại: ${escapeHtml(data.phone)}</li>
+            <li>Email: ${escapeHtml(data.email)}</li>
+            <li>Nội dung: ${escapeHtml(data.message)}</li>
           </ul>
+          <p>Hotline: ${hotline}</p>
         `,
       };
     default:
       return {
-        subject: `[MobiFone Son La] Thong bao`,
-        html: `<pre>${JSON.stringify(data, null, 2)}</pre>`,
+        subject: `[${branchName}] Thông báo`,
+        html: `<pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>`,
       };
   }
 }

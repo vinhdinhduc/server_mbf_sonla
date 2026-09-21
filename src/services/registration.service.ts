@@ -23,17 +23,20 @@ async function resolveItemSnapshot(
 ): Promise<ResolvedItem> {
   if (type === 'sim') {
     const sim = await SimNumber.findByPk(referenceId);
-    if (!sim) throw AppError.badRequest(`Khong tim thay sim id=${referenceId}`);
+    if (!sim) throw AppError.badRequest(`Không tìm thấy sim id=${referenceId}`);
+    const fee = await settingService.getRawValue(
+      `sim_activation_fee_${sim.subscription_type ?? 'postpaid'}`,
+    );
     return {
       type,
       reference_id: referenceId,
       reference_label: sim.phone_number,
-      price_snapshot: Number(sim.price),
+      price_snapshot: Number(fee ?? (sim.subscription_type === 'prepaid' ? 50000 : 60000)),
     };
   }
   if (type === 'goi_cuoc') {
     const pkg = await Package.findByPk(referenceId);
-    if (!pkg) throw AppError.badRequest(`Khong tim thay goi cuoc id=${referenceId}`);
+    if (!pkg) throw AppError.badRequest(`Không tìm thấy gói cước id=${referenceId}`);
     return {
       type,
       reference_id: referenceId,
@@ -42,7 +45,7 @@ async function resolveItemSnapshot(
     };
   }
   const sol = await Solution.findByPk(referenceId);
-  if (!sol) throw AppError.badRequest(`Khong tim thay giai phap id=${referenceId}`);
+  if (!sol) throw AppError.badRequest(`Không tìm thấy giải pháp id=${referenceId}`);
   return {
     type,
     reference_id: referenceId,
@@ -80,6 +83,23 @@ export const registrationService = {
         { transaction: t },
       );
 
+      const uniqueSimIds = [
+        ...new Set(resolvedItems.filter((item) => item.type === 'sim').map((item) => item.reference_id)),
+      ];
+      for (const simId of uniqueSimIds) {
+        const [affected] = await SimNumber.update(
+          {
+            status: 'reserved',
+            reserved_until: new Date(Date.now() + 30 * 60 * 1000),
+            reserved_registration_id: createdGroup.id,
+          },
+          { where: { id: simId, status: 'available' }, transaction: t },
+        );
+        if (affected !== 1) {
+          throw AppError.conflict('Số vừa được chọn bởi người khác, vui lòng chọn số khác');
+        }
+      }
+
       await RegistrationItem.bulkCreate(
         resolvedItems.map((item) => ({
           registration_group_id: createdGroup.id,
@@ -95,7 +115,11 @@ export const registrationService = {
     });
 
     // Sau khi luu thanh cong: gui email tu dong toi setting notify_email
-    const notifyEmail = await settingService.getRawValue('notify_email');
+    const [notifyEmail, branchName, hotline] = await Promise.all([
+      settingService.getRawValue('notify_email'),
+      settingService.getRawValue('site_name'),
+      settingService.getRawValue('hotline'),
+    ]);
     if (notifyEmail) {
       await activeNotifier
         .send(notifyEmail, 'new_registration', {
@@ -103,10 +127,12 @@ export const registrationService = {
           phone: dto.phone,
           note: dto.note,
           item_count: resolvedItems.length,
+          branch_name: branchName,
+          hotline,
         })
         .catch((err) => {
           // eslint-disable-next-line no-console
-          console.error('Gui email thong bao dang ky that bai:', err);
+          console.error('Gửi email thông báo đăng ký thất bại:', err);
         });
     }
 
@@ -143,12 +169,12 @@ export const registrationService = {
 
   async updateStatus(id: number, dto: UpdateRegistrationGroupDto, currentUser: AuthUserPayload) {
     const group = await RegistrationGroup.findByPk(id);
-    if (!group) throw AppError.notFound('Khong tim thay yeu cau dang ky');
+    if (!group) throw AppError.notFound('Không tìm thấy yêu cầu đăng ký');
 
     // LOGIC NGHIEP VU nam o Service (khong o Controller): nhan_vien chi duoc
     // sua khi assigned_to === currentUser.id (muc 16.1)
     if (currentUser.role === 'nhan_vien' && group.assigned_to !== currentUser.id) {
-      throw AppError.forbidden('Ban khong duoc phep cap nhat yeu cau dang ky nay');
+      throw AppError.forbidden('Bạn không được phép cập nhật yêu cầu đăng ký này');
     }
 
     await group.update(dto);

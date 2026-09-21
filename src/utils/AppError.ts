@@ -27,6 +27,10 @@ export class AppError extends Error {
     return new AppError(message, 404);
   }
 
+  static conflict(message = 'Dữ liệu đã được thay đổi bởi yêu cầu khác'): AppError {
+    return new AppError(message, 409);
+  }
+
   static tooManyRequests(message = 'Quá nhiều yêu cầu'): AppError {
     return new AppError(message, 429);
   }

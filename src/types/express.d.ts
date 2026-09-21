@@ -14,7 +14,7 @@ declare global {
       /** Duoc auditLogger.middleware gan tam de controller/service bao lai du lieu old/new */
       auditContext?: {
         module: string;
-        action: 'create' | 'update' | 'delete' | 'login' | 'logout';
+        action: 'create' | 'update' | 'delete' | 'login' | 'logout' | 'export';
         targetId?: number;
         description?: string;
         oldValue?: unknown;

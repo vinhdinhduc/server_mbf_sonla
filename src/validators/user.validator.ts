@@ -5,11 +5,19 @@ export const userStatusEnum = z.enum(['active', 'locked']);
 
 export const createUserSchema = z.object({
   username: z.string().min(3).max(50),
-  password: z.string().min(6).max(100),
+  password: z.string().min(8, 'Mật khẩu phải có ít nhất 8 ký tự').max(100),
   full_name: z.string().min(1).max(100),
   email: z.string().email().max(100),
   phone: z.string().min(9).max(20),
-  avatar_url: z.string().url().max(500).nullable().optional(),
+  avatar_url: z
+    .string()
+    .max(500)
+    .refine(
+      (value) => value.startsWith('/uploads/') || /^https?:\/\//i.test(value),
+      'Đường dẫn ảnh đại diện không hợp lệ',
+    )
+    .nullable()
+    .optional(),
   role: userRoleEnum,
   status: userStatusEnum.default('active'),
 });
@@ -18,7 +26,7 @@ export const updateUserSchema = createUserSchema
   .partial()
   .omit({ password: true })
   .extend({
-    password: z.string().min(6).max(100).optional(),
+    password: z.string().min(8, 'Mật khẩu phải có ít nhất 8 ký tự').max(100).optional(),
   });
 
 export type CreateUserDto = z.infer<typeof createUserSchema>;

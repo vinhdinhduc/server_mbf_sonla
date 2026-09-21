@@ -46,7 +46,7 @@ export const solutionService = {
         { model: SolutionGallery, as: 'gallery', separate: true, order: [['sort_order', 'ASC']] },
       ],
     });
-    if (!sol) throw AppError.notFound('Khong tim thay giai phap');
+    if (!sol) throw AppError.notFound('Không tìm thấy giải pháp');
     const result = sol.toJSON() as Record<string, any>;
     result.gallery = (result.gallery ?? []).map((item: Record<string, any>) =>
       attachImageUrls(item, ['image_url']),
@@ -67,7 +67,7 @@ export const solutionService = {
         { model: SolutionGallery, as: 'gallery', separate: true, order: [['sort_order', 'ASC']] },
       ],
     });
-    if (!sol) throw AppError.notFound('Khong tim thay giai phap');
+    if (!sol) throw AppError.notFound('Không tìm thấy giải pháp');
     return sol;
   },
 

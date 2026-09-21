@@ -1,29 +1,23 @@
-import { env } from '../config/env';
-
 /**
- * Ghep duong dan anh tuong doi (vd: '/uploads/abc.jpg' hoac 'uploads/abc.jpg')
- * thanh URL tuyet doi day du dua tren APP_BASE_URL.
- * Neu gia tri da la URL tuyet doi (http/https) thi giu nguyen.
- * Dung 1 noi duy nhat (helper nay) o tang Controller truoc khi tra response,
- * khong lap logic nay o nhieu noi (yeu cau muc 14).
+ * API chỉ trả đường dẫn upload tương đối; frontend ghép ASSET_BASE_URL.
+ * URL bên ngoài hợp lệ vẫn được giữ nguyên.
  */
 export function buildImageUrl(relativePathOrNull: string | null | undefined): string | null {
   if (!relativePathOrNull) return null;
-  const base = env.APP_BASE_URL.replace(/\/+$/, '');
   if (/^https?:\/\//i.test(relativePathOrNull)) {
     try {
       const absoluteUrl = new URL(relativePathOrNull);
       if (!['localhost', '127.0.0.1', '::1'].includes(absoluteUrl.hostname)) {
         return relativePathOrNull;
       }
-      return `${base}${absoluteUrl.pathname}${absoluteUrl.search}`;
+      return `${absoluteUrl.pathname}${absoluteUrl.search}`;
     } catch {
       return relativePathOrNull;
     }
   }
 
   const cleanPath = relativePathOrNull.replace(/^\/+/, '');
-  return `${base}/${cleanPath}`;
+  return `/${cleanPath}`;
 }
 
 /**

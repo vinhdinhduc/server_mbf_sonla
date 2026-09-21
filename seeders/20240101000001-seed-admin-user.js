@@ -7,7 +7,7 @@ module.exports = {
 
     if (!password) {
       throw new Error(
-        'SEED_ADMIN_PASSWORD chua duoc cau hinh trong .env - vui long dat truoc khi chay seed',
+        'SEED_ADMIN_PASSWORD chưa được cấu hình trong .env - vui lòng đặt trước khi chạy seed',
       );
     }
 

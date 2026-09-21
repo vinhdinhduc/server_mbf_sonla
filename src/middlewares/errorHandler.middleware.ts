@@ -12,12 +12,25 @@ export function errorHandlerMiddleware(
 ): void {
   if (err instanceof ZodError) {
     const message = err.errors.map((e) => e.message).join('; ');
-    res.status(400).json({ success: false, data: null, message });
+    const fields = Object.fromEntries(
+      err.errors.map((issue) => [issue.path.join('.') || '_form', issue.message]),
+    );
+    res.status(422).json({
+      success: false,
+      data: null,
+      message,
+      error: { code: 'VALIDATION_ERROR', message, fields },
+    });
     return;
   }
 
   if (err instanceof AppError) {
-    res.status(err.statusCode).json({ success: false, data: null, message: err.message });
+    res.status(err.statusCode).json({
+      success: false,
+      data: null,
+      message: err.message,
+      error: { code: `HTTP_${err.statusCode}`, message: err.message },
+    });
     return;
   }
 
@@ -26,7 +39,12 @@ export function errorHandlerMiddleware(
   console.error(err);
   const message =
     env.NODE_ENV === 'production'
-      ? 'Loi he thong, vui long thu lai sau'
-      : (err as Error)?.message || 'Loi he thong';
-  res.status(500).json({ success: false, data: null, message });
+      ? 'Lỗi hệ thống, vui lòng thử lại sau'
+      : (err as Error)?.message || 'Lỗi hệ thống';
+  res.status(500).json({
+    success: false,
+    data: null,
+    message,
+    error: { code: 'INTERNAL_ERROR', message },
+  });
 }

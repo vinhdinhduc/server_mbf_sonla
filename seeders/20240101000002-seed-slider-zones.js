@@ -5,7 +5,7 @@ module.exports = {
       [
         {
           code: 'hero_banner',
-          name: 'Banner trang chu',
+          name: 'Banner trang chủ',
           animation_type: 'fade',
           autoplay_enabled: true,
           autoplay_speed_ms: 5000,
@@ -13,7 +13,7 @@ module.exports = {
         },
         {
           code: 'partners',
-          name: 'Doi tac',
+          name: 'Đối tác',
           animation_type: 'slide',
           autoplay_enabled: true,
           autoplay_speed_ms: 3000,
@@ -21,7 +21,7 @@ module.exports = {
         },
         {
           code: 'testimonials',
-          name: 'Danh gia khach hang',
+          name: 'Đánh giá khách hàng',
           animation_type: 'fade',
           autoplay_enabled: true,
           autoplay_speed_ms: 6000,

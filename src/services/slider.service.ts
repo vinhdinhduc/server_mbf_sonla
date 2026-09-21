@@ -12,7 +12,7 @@ export const sliderService = {
   /** GET /api/public/sliders/:zoneCode - chi tra cac item dang duoc bat */
   async getPublicByZoneCode(zoneCode: string) {
     const zone = await SliderZone.findOne({ where: { code: zoneCode, status: 'active' } });
-    if (!zone) throw AppError.notFound('Khong tim thay khu vuc slider');
+    if (!zone) throw AppError.notFound('Không tìm thấy khu vực slider');
 
     const items = await SliderItem.findAll({
       where: {
@@ -37,7 +37,7 @@ export const sliderService = {
 
   async updateZone(id: number, dto: UpdateSliderZoneDto) {
     const zone = await SliderZone.findByPk(id);
-    if (!zone) throw AppError.notFound('Khong tim thay khu vuc slider');
+    if (!zone) throw AppError.notFound('Không tìm thấy khu vực slider');
     await zone.update(dto);
     return zone;
   },
@@ -53,13 +53,13 @@ export const sliderService = {
 
   async getItemById(id: number) {
     const item = await SliderItem.findByPk(id);
-    if (!item) throw AppError.notFound('Khong tim thay slide');
+    if (!item) throw AppError.notFound('Không tìm thấy slide');
     return item;
   },
 
   async createItem(dto: CreateSliderItemDto) {
     const zone = await SliderZone.findByPk(dto.zone_id);
-    if (!zone) throw AppError.badRequest('zone_id khong hop le');
+    if (!zone) throw AppError.badRequest('Khu vực slider không hợp lệ');
     return SliderItem.create(dto as any);
   },
 

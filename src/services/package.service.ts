@@ -12,7 +12,7 @@ export const packageService = {
 
   async getPublicBySlug(slug: string) {
     const pkg = await Package.findOne({ where: { slug, status: 'active' } });
-    if (!pkg) throw AppError.notFound('Khong tim thay goi cuoc');
+    if (!pkg) throw AppError.notFound('Không tìm thấy gói cước');
     return pkg;
   },
 
@@ -22,13 +22,13 @@ export const packageService = {
 
   async getById(id: number) {
     const pkg = await Package.findByPk(id);
-    if (!pkg) throw AppError.notFound('Khong tim thay goi cuoc');
+    if (!pkg) throw AppError.notFound('Không tìm thấy gói cước');
     return pkg;
   },
 
   async create(dto: CreatePackageDto) {
     const existing = await Package.findOne({ where: { code: dto.code } });
-    if (existing) throw AppError.badRequest('Ma goi cuoc da ton tai');
+    if (existing) throw AppError.badRequest('Mã gói cước đã tồn tại');
     return Package.create(dto);
   },
 
@@ -36,7 +36,7 @@ export const packageService = {
     const pkg = await this.getById(id);
     if (dto.code && dto.code !== pkg.code) {
       const existing = await Package.findOne({ where: { code: dto.code, id: { [Op.ne]: id } } });
-      if (existing) throw AppError.badRequest('Ma goi cuoc da ton tai');
+      if (existing) throw AppError.badRequest('Mã gói cước đã tồn tại');
     }
     await pkg.update(dto);
     return pkg;

@@ -10,7 +10,7 @@ export const appointmentController = {
   async create(req: Request, res: Response) {
     const dto = createAppointmentSchema.parse(req.body);
     const appointment = await appointmentService.create(dto);
-    sendCreated(res, appointment, 'Dat lich den cua hang thanh cong');
+    sendCreated(res, appointment, 'Đặt lịch đến cửa hàng thành công');
   },
 
   async list(req: Request, res: Response) {
@@ -31,6 +31,6 @@ export const appointmentController = {
       targetId: appointment.id,
       newValue: dto,
     };
-    sendSuccess(res, appointment, 'Cap nhat lich hen thanh cong');
+    sendSuccess(res, appointment, 'Cập nhật lịch hẹn thành công');
   },
 };

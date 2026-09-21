@@ -26,7 +26,7 @@ export const newsService = {
 
   async getPublicBySlug(slug: string) {
     const news = await News.findOne({ where: { slug, status: 'published' } });
-    if (!news) throw AppError.notFound('Khong tim thay tin tuc');
+    if (!news) throw AppError.notFound('Không tìm thấy tin tức');
     return attachImageUrls(news.toJSON(), ['thumbnail']);
   },
 
@@ -37,7 +37,7 @@ export const newsService = {
 
   async getById(id: number) {
     const news = await News.findByPk(id);
-    if (!news) throw AppError.notFound('Khong tim thay tin tuc');
+    if (!news) throw AppError.notFound('Không tìm thấy tin tức');
     return news;
   },
 

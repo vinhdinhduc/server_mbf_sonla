@@ -7,8 +7,8 @@ export const createShiftSchema = z
     user_id: z.coerce.number().int().positive(),
     store_id: z.coerce.number().int().positive().optional(),
     shift_date: z.coerce.date(),
-    start_time: z.string().regex(timeRegex, 'start_time phai dang HH:mm hoac HH:mm:ss'),
-    end_time: z.string().regex(timeRegex, 'end_time phai dang HH:mm hoac HH:mm:ss'),
+    start_time: z.string().regex(timeRegex, 'Giờ bắt đầu phải có dạng HH:mm hoặc HH:mm:ss'),
+    end_time: z.string().regex(timeRegex, 'Giờ kết thúc phải có dạng HH:mm hoặc HH:mm:ss'),
     note: z.string().max(255).optional().nullable(),
   })
   .refine((data) => data.start_time < data.end_time, {
