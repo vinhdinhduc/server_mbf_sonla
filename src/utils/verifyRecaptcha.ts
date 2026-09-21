@@ -14,6 +14,14 @@ interface RecaptchaVerifyResponse {
  * duoi nguong cau hinh (RECAPTCHA_MIN_SCORE), nem AppError 400.
  */
 export async function verifyRecaptcha(token: string): Promise<void> {
+  // Chỉ dùng cho database E2E cô lập; không bao giờ hoạt động ở production.
+  if (
+    env.NODE_ENV === 'test' &&
+    process.env.E2E_DB_ISOLATED === '1' &&
+    process.env.RECAPTCHA_TEST_BYPASS_TOKEN &&
+    token === process.env.RECAPTCHA_TEST_BYPASS_TOKEN
+  )
+    return;
   const params = new URLSearchParams({
     secret: env.RECAPTCHA_SECRET_KEY,
     response: token,

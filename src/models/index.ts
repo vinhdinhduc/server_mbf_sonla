@@ -83,6 +83,8 @@ User.hasMany(WorkShift, { foreignKey: 'user_id', as: 'shifts' });
 WorkShift.belongsTo(User, { foreignKey: 'user_id', as: 'staff' });
 WorkShift.belongsTo(Store, { foreignKey: 'store_id', as: 'store' });
 Store.hasMany(WorkShift, { foreignKey: 'store_id', as: 'shifts' });
+Store.hasMany(User, { foreignKey: 'store_id', as: 'staff' });
+User.belongsTo(Store, { foreignKey: 'store_id', as: 'assignedStore' });
 
 // work_shifts.created_by -> users.id (admin nao xep lich)
 User.hasMany(WorkShift, { foreignKey: 'created_by', as: 'createdShifts' });

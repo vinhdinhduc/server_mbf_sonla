@@ -1,11 +1,23 @@
 import ExcelJS from 'exceljs';
-import { Op } from 'sequelize';
+import { createHash } from 'crypto';
+import { InferCreationAttributes, Op } from 'sequelize';
+import { z } from 'zod';
 import { sequelize } from '../config/database';
-import { SimNumber, SimCatalog, SimType, SimStatus, SubscriptionType } from '../models/SimNumber.model';
+import {
+  SimNumber,
+  SimCatalog,
+  SimType,
+  SimStatus,
+  SubscriptionType,
+} from '../models/SimNumber.model';
 import { settingService } from './setting.service';
 import { AppError } from '../utils/AppError';
-import { CreateSimDto, UpdateSimDto, exportSimQuerySchema, listAdminSimQuerySchema } from '../validators/sim.validator';
-import { z } from 'zod';
+import {
+  CreateSimDto,
+  UpdateSimDto,
+  exportSimQuerySchema,
+  listAdminSimQuerySchema,
+} from '../validators/sim.validator';
 
 export interface ImportRowError {
   row: number;
@@ -17,6 +29,12 @@ export interface ImportResult {
   updated: number;
   skipped: number;
   errors: ImportRowError[];
+}
+
+export interface ImportPreview extends ImportResult {
+  digest: string;
+  total: number;
+  sample: Array<{ row: number; phone_number: string; subscription_type: string; action: string }>;
 }
 
 export interface SimExportFile {
@@ -63,7 +81,10 @@ export const simService = {
       { status: 'available', reserved_until: null, reserved_registration_id: null },
       { where: { status: 'reserved', reserved_until: { [Op.lt]: new Date() } } },
     );
-    const where: Record<string, unknown> = { status: 'available', subscription_type: subscriptionType };
+    const where: Record<string, unknown> = {
+      status: 'available',
+      subscription_type: subscriptionType,
+    };
     if (query) {
       const pattern = query.includes('*') ? query.replace(/\*/g, '%') : `%${query}%`;
       where.phone_number = { [Op.like]: pattern };
@@ -93,7 +114,9 @@ export const simService = {
     );
     return {
       ...sim.toJSON(),
-      activation_fee: Number(configuredFee ?? (sim.subscription_type === 'prepaid' ? 50000 : 60000)),
+      activation_fee: Number(
+        configuredFee ?? (sim.subscription_type === 'prepaid' ? 50000 : 60000),
+      ),
     };
   },
 
@@ -180,7 +203,10 @@ export const simService = {
           .join(','),
       );
       return {
-        buffer: Buffer.from(`\uFEFF${[header.map(escapeCsv).join(','), ...lines].join('\r\n')}`, 'utf8'),
+        buffer: Buffer.from(
+          `\uFEFF${[header.map(escapeCsv).join(','), ...lines].join('\r\n')}`,
+          'utf8',
+        ),
         contentType: 'text/csv; charset=utf-8',
         extension: 'csv',
         rowCount: rows.length,
@@ -258,9 +284,13 @@ export const simService = {
    *    Day la cach dam bao "1 dong loi khong lam rollback toan bo file" ma
    *    van giu tinh nguyen tu (transaction) cho phan du lieu da duoc chap nhan.
    */
-  async importFromExcel(buffer: Buffer, duplicateMode: 'skip' | 'update'): Promise<ImportResult> {
+  async importFromExcel(
+    buffer: Buffer,
+    duplicateMode: 'skip' | 'update',
+    previewOnly = false,
+  ): Promise<ImportResult | ImportPreview> {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer as any);
+    await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
     const sheet = workbook.worksheets[0];
     if (!sheet) throw AppError.badRequest('File Excel không có trang dữ liệu');
     if (sheet.rowCount > 20001) {
@@ -269,9 +299,11 @@ export const simService = {
 
     const errors: ImportRowError[] = [];
     const validRows: Array<CreateSimDto & { prefix: string }> = [];
+    const sample: ImportPreview['sample'] = [];
     const seenInFile = new Set<string>();
     let skippedDuplicates = 0;
     let updated = 0;
+    let total = 0;
 
     const existingPhones = new Set(
       (await SimNumber.findAll({ attributes: ['phone_number'] })).map((s) => s.phone_number),
@@ -279,6 +311,7 @@ export const simService = {
 
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return; // dong header
+      total += 1;
 
       const getCell = (col: number) => row.getCell(col).value;
       const phoneNumber = String(getCell(COLUMN_MAP.phone_number) ?? '').trim();
@@ -293,12 +326,31 @@ export const simService = {
       const commitmentRaw = getCell(COLUMN_MAP.commitment_months);
       const statusRaw = String(getCell(COLUMN_MAP.status) ?? 'available').trim() as SimStatus;
 
+      if (
+        commitmentRaw !== null &&
+        commitmentRaw !== undefined &&
+        commitmentRaw !== '' &&
+        (!Number.isInteger(Number(commitmentRaw)) ||
+          Number(commitmentRaw) < 0 ||
+          Number(commitmentRaw) > 36)
+      ) {
+        errors.push({ row: rowNumber, message: 'Cam kết phải là số nguyên từ 0 đến 36 tháng' });
+        return;
+      }
+      if (!VALID_STATUSES.includes(statusRaw)) {
+        errors.push({ row: rowNumber, message: 'Trạng thái không hợp lệ' });
+        return;
+      }
+
       if (!phoneNumber) {
         errors.push({ row: rowNumber, message: 'Thiếu số điện thoại' });
         return;
       }
       if (!/^0\d{9}$/.test(phoneNumber)) {
-        errors.push({ row: rowNumber, message: 'Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0' });
+        errors.push({
+          row: rowNumber,
+          message: 'Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0',
+        });
         return;
       }
       if (!VALID_SUBSCRIPTION_TYPES.includes(subscriptionType)) {
@@ -323,12 +375,26 @@ export const simService = {
       }
       if (existingPhones.has(phoneNumber) && duplicateMode === 'skip') {
         skippedDuplicates += 1;
+        if (sample.length < 20)
+          sample.push({
+            row: rowNumber,
+            phone_number: phoneNumber,
+            subscription_type: subscriptionType,
+            action: 'Bỏ qua',
+          });
         return;
       }
       if (existingPhones.has(phoneNumber)) updated += 1;
       const status = VALID_STATUSES.includes(statusRaw) ? statusRaw : 'available';
 
       seenInFile.add(phoneNumber);
+      if (sample.length < 20)
+        sample.push({
+          row: rowNumber,
+          phone_number: phoneNumber,
+          subscription_type: subscriptionType,
+          action: existingPhones.has(phoneNumber) ? 'Cập nhật' : 'Thêm',
+        });
       validRows.push({
         phone_number: phoneNumber,
         prefix: phoneNumber.slice(0, 3),
@@ -342,9 +408,9 @@ export const simService = {
       });
     });
 
-    if (validRows.length > 0) {
+    if (!previewOnly && validRows.length > 0) {
       await sequelize.transaction(async (t) => {
-        await SimNumber.bulkCreate(validRows as any, {
+        await SimNumber.bulkCreate(validRows as unknown as InferCreationAttributes<SimNumber>[], {
           transaction: t,
           updateOnDuplicate:
             duplicateMode === 'update'
@@ -363,12 +429,14 @@ export const simService = {
       });
     }
 
-    return {
+    const result = {
       inserted: validRows.length - updated,
       updated,
       skipped: skippedDuplicates + errors.length,
       errors,
     };
+    if (!previewOnly) return result;
+    return { ...result, digest: createHash('sha256').update(buffer).digest('hex'), total, sample };
   },
 
   async bulkUpdateStatus(ids: number[], status: SimStatus) {

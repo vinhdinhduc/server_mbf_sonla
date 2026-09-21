@@ -1,6 +1,17 @@
 import { Request, Response } from 'express';
+import { createHash } from 'crypto';
+import jwt from 'jsonwebtoken';
+import { env } from '../config/env';
 import { simService } from '../services/sim.service';
-import { bulkSimDeleteSchema, bulkSimStatusSchema, createSimSchema, exportSimQuerySchema, listAdminSimQuerySchema, listSimQuerySchema, updateSimSchema } from '../validators/sim.validator';
+import {
+  bulkSimDeleteSchema,
+  bulkSimStatusSchema,
+  createSimSchema,
+  exportSimQuerySchema,
+  listAdminSimQuerySchema,
+  listSimQuerySchema,
+  updateSimSchema,
+} from '../validators/sim.validator';
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
 import { AppError } from '../utils/AppError';
 import { AuditLog } from '../models/AuditLog.model';
@@ -59,7 +70,33 @@ export const simController = {
 
   async importExcel(req: Request, res: Response) {
     if (!req.file) throw AppError.badRequest('Vui lòng tải lên file Excel (tên trường: file)');
+    if (req.file.buffer.subarray(0, 4).toString('hex') !== '504b0304')
+      throw AppError.badRequest('Nội dung tệp không phải Excel .xlsx hợp lệ');
     const duplicateMode = req.body.mode === 'update' ? 'update' : 'skip';
+    const digest = createHash('sha256').update(req.file.buffer).digest('hex');
+    if (!/^[a-f0-9]{64}$/.test(req.body.digest ?? '') || req.body.digest !== digest) {
+      throw AppError.badRequest('Tệp Excel đã thay đổi; vui lòng xem trước lại trước khi nhập');
+    }
+    try {
+      const preview = jwt.verify(req.body.preview_token, env.JWT_SECRET) as {
+        digest: string;
+        mode: string;
+        userId: number;
+        purpose: string;
+      };
+      if (
+        preview.digest !== digest ||
+        preview.mode !== duplicateMode ||
+        preview.userId !== req.user?.id ||
+        preview.purpose !== 'sim-import'
+      ) {
+        throw new Error('Preview mismatch');
+      }
+    } catch {
+      throw AppError.badRequest(
+        'Phiên xem trước đã hết hạn hoặc không khớp; vui lòng xem trước lại',
+      );
+    }
     const result = await simService.importFromExcel(req.file.buffer, duplicateMode);
     req.auditContext = {
       module: 'sims',
@@ -67,6 +104,22 @@ export const simController = {
       description: `Import Excel: thêm ${result.inserted}, cập nhật ${result.updated}, bỏ qua ${result.skipped}; chế độ ${duplicateMode}`,
     };
     sendSuccess(res, result, 'Nhập dữ liệu thành công');
+  },
+
+  async previewImport(req: Request, res: Response) {
+    if (!req.file) throw AppError.badRequest('Vui lòng tải lên file Excel');
+    if (req.file.buffer.subarray(0, 4).toString('hex') !== '504b0304')
+      throw AppError.badRequest('Nội dung tệp không phải Excel .xlsx hợp lệ');
+    if (req.body.mode !== 'skip' && req.body.mode !== 'update')
+      throw AppError.badRequest('Chế độ xử lý trùng không hợp lệ');
+    const result = await simService.importFromExcel(req.file.buffer, req.body.mode, true);
+    const digest = createHash('sha256').update(req.file.buffer).digest('hex');
+    const previewToken = jwt.sign(
+      { digest, mode: req.body.mode, userId: req.user?.id, purpose: 'sim-import' },
+      env.JWT_SECRET,
+      { expiresIn: '10m' },
+    );
+    sendSuccess(res, { ...result, preview_token: previewToken });
   },
 
   async bulkUpdateStatus(req: Request, res: Response) {
@@ -115,7 +168,10 @@ export const simController = {
       ip_address: req.ip ?? null,
     });
     res.setHeader('Content-Type', file.contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="kho-sim_${stamp}.${file.extension}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="kho-sim_${stamp}.${file.extension}"`,
+    );
     res.send(file.buffer);
   },
 };

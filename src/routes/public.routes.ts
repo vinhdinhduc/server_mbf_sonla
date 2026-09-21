@@ -31,6 +31,7 @@ router.get('/solutions', asyncHandler(solutionController.listPublic));
 router.get('/solutions/:slug', asyncHandler(solutionController.getPublicBySlug));
 
 router.get('/stores', asyncHandler(storeController.listPublic));
+router.get('/wards', asyncHandler(storeController.listWards));
 
 router.get('/search', asyncHandler(searchController.search));
 

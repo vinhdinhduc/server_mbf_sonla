@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import { storeService } from '../services/store.service';
 import {
   createStoreSchema,
@@ -6,12 +7,22 @@ import {
   updateStoreSchema,
 } from '../validators/store.validator';
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
+import { nominatimProvider } from '../services/geocoding.service';
 
 export const storeController = {
   async listPublic(req: Request, res: Response) {
     const query = listStoreQuerySchema.parse(req.query);
-    const rows = await storeService.listPublic(query.district);
+    const rows = await storeService.listPublic(query.ward_code);
     sendSuccess(res, rows);
+  },
+
+  async listWards(_req: Request, res: Response) {
+    sendSuccess(res, await storeService.listWards());
+  },
+
+  async geocode(req: Request, res: Response) {
+    const { address } = z.object({ address: z.string().trim().min(5).max(200) }).parse(req.query);
+    sendSuccess(res, await nominatimProvider.search(address));
   },
 
   async listAdmin(_req: Request, res: Response) {
@@ -43,6 +54,6 @@ export const storeController = {
     const id = Number(req.params.id);
     await storeService.remove(id);
     req.auditContext = { module: 'stores', action: 'delete', targetId: id };
-    sendSuccess(res, null, 'Xóa cửa hàng thành công  ');
+    sendSuccess(res, null, 'Đã ngừng hoạt động cửa hàng');
   },
 };

@@ -136,10 +136,25 @@ export const shiftService = {
 
     if (shift && (shift as any).staff) {
       const staff = (shift as any).staff as User;
-      return { name: staff.full_name, phone: staff.phone, avatar_url: buildImageUrl(staff.avatar_url) };
+      if (
+        staff.status === 'active' &&
+        staff.is_public_profile &&
+        staff.public_phone &&
+        staff.store_id === shift.store_id
+      ) {
+        return {
+          name: staff.full_name,
+          phone: staff.public_phone,
+          avatar_url: buildImageUrl(staff.avatar_url),
+        };
+      }
     }
 
     const hotlineSetting = await Setting.findOne({ where: { key: 'hotline' } });
-    return { name: 'Hotline MobiFone Sơn La', phone: hotlineSetting?.value ?? '', avatar_url: null };
+    return {
+      name: 'Hotline MobiFone Sơn La',
+      phone: hotlineSetting?.value ?? '',
+      avatar_url: null,
+    };
   },
 };

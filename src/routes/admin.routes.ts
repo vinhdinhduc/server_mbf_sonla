@@ -172,8 +172,14 @@ router.delete(
   asyncHandler(simController.remove),
 );
 router.post(
+  '/sims/import/preview',
+  checkRole(['admin']),
+  uploadExcel.single('file'),
+  asyncHandler(simController.previewImport),
+);
+router.post(
   '/sims/import',
-  checkRole([...CONTENT_ROLES]),
+  checkRole(['admin']),
   uploadExcel.single('file'),
   auditLogger('sims', 'create'),
   asyncHandler(simController.importExcel),
@@ -210,23 +216,24 @@ router.delete(
 );
 
 // ============== Stores - admin & chuyen_vien ==============
-router.get('/stores', checkRole([...CONTENT_ROLES]), asyncHandler(storeController.listAdmin));
-router.get('/stores/:id', checkRole([...CONTENT_ROLES]), asyncHandler(storeController.getById));
+router.get('/stores', checkRole(['admin']), asyncHandler(storeController.listAdmin));
+router.get('/stores/geocode', checkRole(['admin']), asyncHandler(storeController.geocode));
+router.get('/stores/:id', checkRole(['admin']), asyncHandler(storeController.getById));
 router.post(
   '/stores',
-  checkRole([...CONTENT_ROLES]),
+  checkRole(['admin']),
   auditLogger('stores', 'create'),
   asyncHandler(storeController.create),
 );
 router.put(
   '/stores/:id',
-  checkRole([...CONTENT_ROLES]),
+  checkRole(['admin']),
   auditLogger('stores', 'update'),
   asyncHandler(storeController.update),
 );
 router.delete(
   '/stores/:id',
-  checkRole([...CONTENT_ROLES]),
+  checkRole(['admin']),
   auditLogger('stores', 'delete'),
   asyncHandler(storeController.remove),
 );
