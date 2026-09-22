@@ -7,6 +7,7 @@ import { AppError } from '../utils/AppError';
 import { AuthUserPayload } from '../types/express';
 import { CreateAppointmentDto, UpdateAppointmentDto } from '../validators/appointment.validator';
 import { todayDateStringVietnam } from '../utils/vietnamTime';
+import { emailService } from './email.service';
 
 export const appointmentService = {
   async create(dto: CreateAppointmentDto) {
@@ -26,11 +27,19 @@ export const appointmentService = {
       order: [['start_time', 'ASC']],
     });
 
-    return StoreAppointment.create({
+    const appointment = await StoreAppointment.create({
       ...dto,
+      email: dto.email || null,
       note: dto.note ?? null,
       assigned_to: shift?.user_id ?? null,
     });
+    const staffEmail = shift?.user_id ? (await User.findByPk(shift.user_id))?.email : store.email;
+    const variables = { customer_name: dto.customer_name, phone: dto.phone, store_name: store.name };
+    await Promise.all([
+      emailService.enqueue(dto.email, 'appointment_confirmed', variables, `appointment:${appointment.id}:customer`),
+      emailService.enqueue(staffEmail, 'appointment_new_staff', variables, `appointment:${appointment.id}:staff`),
+    ]);
+    return appointment;
   },
 
   async list(currentUser: AuthUserPayload) {

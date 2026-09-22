@@ -4,10 +4,12 @@ import { SolutionFeature } from '../models/SolutionFeature.model';
 import { SolutionPricing } from '../models/SolutionPricing.model';
 import { SolutionFaq } from '../models/SolutionFaq.model';
 import { SolutionGallery } from '../models/SolutionGallery.model';
+import { SolutionStep } from '../models/SolutionStep.model';
 import { AppError } from '../utils/AppError';
 import { CreateSolutionDto, UpdateSolutionDto } from '../validators/solution.validator';
 import { attachImageUrls } from '../utils/buildImageUrl';
 import { sequelize } from '../config/database';
+import { sanitizeContent } from '../utils/sanitizeContent';
 
 export const solutionService = {
   async listPublic(query: {
@@ -44,10 +46,14 @@ export const solutionService = {
         { model: SolutionPricing, as: 'pricing', separate: true, order: [['sort_order', 'ASC']] },
         { model: SolutionFaq, as: 'faqs', separate: true, order: [['sort_order', 'ASC']] },
         { model: SolutionGallery, as: 'gallery', separate: true, order: [['sort_order', 'ASC']] },
+        { model: SolutionStep, as: 'steps', separate: true, order: [['sort_order', 'ASC']] },
       ],
     });
     if (!sol) throw AppError.notFound('Không tìm thấy giải pháp');
     const result = sol.toJSON() as Record<string, any>;
+    result.content = sanitizeContent(result.content || '');
+    result.faqs = (result.faqs ?? []).map((faq: Record<string, any>) => ({ ...faq, answer: faq.answer ? sanitizeContent(faq.answer) : null }));
+    result.pricing = (result.pricing ?? []).filter((plan: Record<string, any>) => plan.status === 'active');
     result.gallery = (result.gallery ?? []).map((item: Record<string, any>) =>
       attachImageUrls(item, ['image_url']),
     );
@@ -65,6 +71,7 @@ export const solutionService = {
         { model: SolutionPricing, as: 'pricing', separate: true, order: [['sort_order', 'ASC']] },
         { model: SolutionFaq, as: 'faqs', separate: true, order: [['sort_order', 'ASC']] },
         { model: SolutionGallery, as: 'gallery', separate: true, order: [['sort_order', 'ASC']] },
+        { model: SolutionStep, as: 'steps', separate: true, order: [['sort_order', 'ASC']] },
       ],
     });
     if (!sol) throw AppError.notFound('Không tìm thấy giải pháp');
@@ -73,11 +80,13 @@ export const solutionService = {
 
   async create(dto: CreateSolutionDto) {
     const existing = await Solution.findOne({ where: { slug: dto.slug } });
-    if (existing) throw AppError.badRequest('Slug da ton tai');
-    const { features, pricing, faqs, gallery, ...solutionData } = dto;
+    if (existing) throw AppError.badRequest('Đường dẫn đã tồn tại');
+    const { features, pricing, faqs, gallery, steps, ...solutionData } = dto;
+    solutionData.content = sanitizeContent(solutionData.content);
+    const cleanFaqs = faqs?.map((faq) => ({ ...faq, question: sanitizeContent(faq.question).replace(/<[^>]*>/g, ''), answer: faq.answer ? sanitizeContent(faq.answer) : null }));
     return sequelize.transaction(async (transaction) => {
       const sol = await Solution.create(solutionData, { transaction });
-      await this.replaceDetails(sol.id, { features, pricing, faqs, gallery }, transaction);
+      await this.replaceDetails(sol.id, { features, pricing, faqs: cleanFaqs, gallery, steps }, transaction);
       return sol;
     });
   },
@@ -86,12 +95,14 @@ export const solutionService = {
     const sol = await this.getById(id);
     if (dto.slug && dto.slug !== sol.slug) {
       const existing = await Solution.findOne({ where: { slug: dto.slug, id: { [Op.ne]: id } } });
-      if (existing) throw AppError.badRequest('Slug da ton tai');
+      if (existing) throw AppError.badRequest('Đường dẫn đã tồn tại');
     }
-    const { features, pricing, faqs, gallery, ...solutionData } = dto;
+    const { features, pricing, faqs, gallery, steps, ...solutionData } = dto;
+    if (solutionData.content !== undefined) solutionData.content = sanitizeContent(solutionData.content);
+    const cleanFaqs = faqs?.map((faq) => ({ ...faq, question: sanitizeContent(faq.question).replace(/<[^>]*>/g, ''), answer: faq.answer ? sanitizeContent(faq.answer) : null }));
     await sequelize.transaction(async (transaction) => {
       await sol.update(solutionData, { transaction });
-      await this.replaceDetails(id, { features, pricing, faqs, gallery }, transaction);
+      await this.replaceDetails(id, { features, pricing, faqs: cleanFaqs, gallery, steps }, transaction);
     });
     return this.getById(id);
   },
@@ -103,7 +114,7 @@ export const solutionService = {
 
   async replaceDetails(
     solutionId: number,
-    details: Pick<CreateSolutionDto, 'features' | 'pricing' | 'faqs' | 'gallery'>,
+    details: Pick<CreateSolutionDto, 'features' | 'pricing' | 'faqs' | 'gallery' | 'steps'>,
     transaction: any,
   ) {
     if (details.features !== undefined) {
@@ -121,6 +132,10 @@ export const solutionService = {
     if (details.gallery !== undefined) {
       await SolutionGallery.destroy({ where: { solution_id: solutionId }, transaction });
       await SolutionGallery.bulkCreate(details.gallery.map((item, index) => ({ ...item, solution_id: solutionId, sort_order: item.sort_order ?? index })), { transaction });
+    }
+    if (details.steps !== undefined) {
+      await SolutionStep.destroy({ where: { solution_id: solutionId }, transaction });
+      await SolutionStep.bulkCreate(details.steps.map((item, index) => ({ ...item, solution_id: solutionId, sort_order: item.sort_order ?? index })), { transaction });
     }
   },
 };

@@ -42,6 +42,13 @@ export class RegistrationGroup extends Model<
   declare status: CreationOptional<RegistrationStatus>;
 
   declare assigned_to: CreationOptional<number | null>;
+  declare code: CreationOptional<string | null>;
+  declare customer_type: CreationOptional<'individual' | 'business'>;
+  declare store_id: CreationOptional<number | null>;
+  declare total_amount: CreationOptional<number>;
+  declare source_utm: CreationOptional<Record<string, string> | null>;
+  declare consent_at: CreationOptional<Date | null>;
+  declare idempotency_key: CreationOptional<string | null>;
 
   declare created_at: CreationOptional<Date>;
 
@@ -69,6 +76,13 @@ export function initRegistrationGroupModel(sequelize: Sequelize): typeof Registr
         defaultValue: 'moi',
       },
       assigned_to: { type: DataTypes.INTEGER, allowNull: true },
+      code: { type: DataTypes.STRING(24), allowNull: true, unique: true },
+      customer_type: { type: DataTypes.ENUM('individual', 'business'), allowNull: false, defaultValue: 'individual' },
+      store_id: { type: DataTypes.INTEGER, allowNull: true },
+      total_amount: { type: DataTypes.DECIMAL(14, 0), allowNull: false, defaultValue: 0 },
+      source_utm: { type: DataTypes.JSON, allowNull: true },
+      consent_at: { type: DataTypes.DATE, allowNull: true },
+      idempotency_key: { type: DataTypes.STRING(100), allowNull: true, unique: true },
       created_at: DataTypes.DATE,
     },
     {

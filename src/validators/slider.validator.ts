@@ -21,6 +21,15 @@ export const createSliderItemSchema = z.object({
   status: sliderStatusEnum.default('active'),
   start_date: z.coerce.date().optional().nullable(),
   end_date: z.coerce.date().optional().nullable(),
+  mobile_image_url: z.string().max(255).optional().nullable(),
+  alt_text: z.string().max(255).optional().nullable(),
+  open_new_tab: z.preprocess((value) => value === true || value === 'true' || value === '1', z.boolean()).default(false),
+  image_width: z.coerce.number().int().positive().optional().nullable(),
+  image_height: z.coerce.number().int().positive().optional().nullable(),
+  image_bytes: z.coerce.number().int().nonnegative().optional().nullable(),
+  person_name: z.string().max(100).optional().nullable(),
+  job_title: z.string().max(100).optional().nullable(),
+  rating: z.coerce.number().int().min(1).max(5).optional().nullable(),
 });
 
 export const updateSliderItemSchema = createSliderItemSchema.partial().omit({ zone_id: true });

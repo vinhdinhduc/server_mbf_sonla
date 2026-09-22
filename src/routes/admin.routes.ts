@@ -3,7 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { checkRole } from '../middlewares/checkRole.middleware';
 import { auditLogger } from '../middlewares/auditLogger.middleware';
-import { uploadImage, uploadExcel, validateUploadedImage } from '../config/multer';
+import { uploadImage, uploadExcel, validateUploadedImage, validateUploadedImages } from '../config/multer';
 
 import { userController } from '../controllers/user.controller';
 import { newsController } from '../controllers/news.controller';
@@ -20,17 +20,50 @@ import { settingController } from '../controllers/setting.controller';
 import { auditLogController } from '../controllers/auditLog.controller';
 import { appointmentController } from '../controllers/appointment.controller';
 import { aiController } from '../controllers/ai.controller';
+import { dashboardController } from '../controllers/dashboard.controller';
+import { rateLimitController } from '../controllers/rateLimit.controller';
+import { emailController } from '../controllers/email.controller';
+import { sendSuccess } from '../utils/apiResponse';
+import { AppError } from '../utils/AppError';
 
 const router = Router();
 
 const ADMIN_ONLY = ['admin'] as const;
 const CONTENT_ROLES = ['admin', 'chuyen_vien'] as const;
-const REGISTRATION_ROLES = ['admin', 'chuyen_vien', 'giao_dich_vien', 'nhan_vien'] as const;
+const REGISTRATION_ROLES = ['admin', 'giao_dich_vien', 'nhan_vien'] as const;
+const DASHBOARD_ROLES = ['admin', 'chuyen_vien', 'giao_dich_vien', 'nhan_vien'] as const;
 const AI_ROLES = ['admin'] as const;
 
 // Tat ca route /api/admin/* deu di qua authMiddleware (verify JWT).
 // checkRole duoc gan RIENG cho tung route theo dung ma tran phan quyen (muc 4).
 router.use(authMiddleware);
+
+router.get('/dashboard', checkRole([...DASHBOARD_ROLES]), asyncHandler(dashboardController.get));
+router.get('/health', checkRole([...DASHBOARD_ROLES]), asyncHandler(dashboardController.health));
+router.get('/rate-limits', checkRole([...ADMIN_ONLY]), asyncHandler(rateLimitController.list));
+router.get('/rate-limits/stats', checkRole([...ADMIN_ONLY]), asyncHandler(rateLimitController.stats));
+router.put('/rate-limits/policies/:key', checkRole([...ADMIN_ONLY]), auditLogger('rate_limits', 'update'), asyncHandler(rateLimitController.save));
+router.post('/rate-limits/rules', checkRole([...ADMIN_ONLY]), auditLogger('rate_limits', 'create'), asyncHandler(rateLimitController.addRule));
+router.delete('/rate-limits/rules/:id', checkRole([...ADMIN_ONLY]), auditLogger('rate_limits', 'delete'), asyncHandler(rateLimitController.removeRule));
+router.post('/rate-limits/unblock', checkRole([...ADMIN_ONLY]), auditLogger('rate_limits', 'update'), asyncHandler(rateLimitController.unblock));
+router.post('/rate-limits/reset', checkRole([...ADMIN_ONLY]), auditLogger('rate_limits', 'update'), asyncHandler(rateLimitController.reset));
+router.get('/email/config', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.config));
+router.put('/email/config', checkRole([...ADMIN_ONLY]), auditLogger('email', 'update'), asyncHandler(emailController.saveConfig));
+router.post('/email/verify', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.verify));
+router.post('/email/test', checkRole([...ADMIN_ONLY]), auditLogger('email', 'update'), asyncHandler(emailController.test));
+router.get('/email/templates', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.templates));
+router.put('/email/templates/:key', checkRole([...ADMIN_ONLY]), auditLogger('email', 'update'), asyncHandler(emailController.saveTemplate));
+router.get('/email/templates/:key/preview', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.preview));
+router.post('/email/templates/:key/restore', checkRole([...ADMIN_ONLY]), auditLogger('email', 'update'), asyncHandler(emailController.restore));
+router.get('/email/logs', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.logs));
+router.post('/email/logs/:id/retry', checkRole([...ADMIN_ONLY]), auditLogger('email', 'update'), asyncHandler(emailController.retry));
+router.get('/email/suppressions', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.suppressions));
+router.post('/email/suppressions', checkRole([...ADMIN_ONLY]), auditLogger('email', 'create'), asyncHandler(emailController.suppress));
+router.delete('/email/suppressions', checkRole([...ADMIN_ONLY]), auditLogger('email', 'delete'), asyncHandler(emailController.unsuppress));
+router.post('/media', checkRole([...CONTENT_ROLES]), uploadImage.single('image'), validateUploadedImage, (req, res) => {
+  if (!req.file) throw AppError.badRequest('Thiếu ảnh tải lên');
+  return sendSuccess(res, { url: `/uploads/${req.file.filename}` });
+});
 
 router.get('/ai-settings', checkRole([...AI_ROLES]), asyncHandler(aiController.getSettings));
 router.put('/ai-settings', checkRole([...AI_ROLES]), asyncHandler(aiController.updateSettings));
@@ -112,12 +145,16 @@ router.get('/packages/:id', checkRole([...CONTENT_ROLES]), asyncHandler(packageC
 router.post(
   '/packages',
   checkRole([...CONTENT_ROLES]),
+  uploadImage.single('image'),
+  validateUploadedImage,
   auditLogger('packages', 'create'),
   asyncHandler(packageController.create),
 );
 router.put(
   '/packages/:id',
   checkRole([...CONTENT_ROLES]),
+  uploadImage.single('image'),
+  validateUploadedImage,
   auditLogger('packages', 'update'),
   asyncHandler(packageController.update),
 );
@@ -260,16 +297,16 @@ router.get(
 router.post(
   '/sliders/items',
   checkRole([...CONTENT_ROLES]),
-  uploadImage.single('image'),
-  validateUploadedImage,
+  uploadImage.fields([{ name: 'image', maxCount: 1 }, { name: 'mobile_image', maxCount: 1 }]),
+  validateUploadedImages,
   auditLogger('sliders', 'create'),
   asyncHandler(sliderController.createItem),
 );
 router.put(
   '/sliders/items/:id',
   checkRole([...CONTENT_ROLES]),
-  uploadImage.single('image'),
-  validateUploadedImage,
+  uploadImage.fields([{ name: 'image', maxCount: 1 }, { name: 'mobile_image', maxCount: 1 }]),
+  validateUploadedImages,
   auditLogger('sliders', 'update'),
   asyncHandler(sliderController.updateItem),
 );
@@ -323,6 +360,10 @@ router.get(
   checkRole([...REGISTRATION_ROLES]),
   asyncHandler(registrationController.list),
 );
+router.get('/registration-groups/export', checkRole([...REGISTRATION_ROLES]), asyncHandler(registrationController.exportExcel));
+router.get('/registration-groups/counts', checkRole([...REGISTRATION_ROLES]), asyncHandler(registrationController.counts));
+router.get('/registration-groups/:id', checkRole([...REGISTRATION_ROLES]), asyncHandler(registrationController.getById));
+router.get('/registration-groups/:id/receipt', checkRole([...REGISTRATION_ROLES]), asyncHandler(registrationController.receiptAdmin));
 router.patch(
   '/registration-groups/:id',
   checkRole([...REGISTRATION_ROLES]),

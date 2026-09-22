@@ -6,10 +6,11 @@ import {
   updateSolutionSchema,
 } from '../validators/solution.validator';
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
+import { sanitizeContent } from '../utils/sanitizeContent';
 
 function parseNestedFields(body: Record<string, unknown>) {
   const result = { ...body } as Record<string, unknown>;
-  for (const key of ['features', 'pricing', 'faqs', 'gallery']) {
+  for (const key of ['features', 'pricing', 'faqs', 'gallery', 'steps', 'audience_cards', 'section_visibility', 'section_titles']) {
     if (typeof result[key] === 'string') result[key] = JSON.parse(result[key] as string);
   }
   return result;
@@ -34,7 +35,10 @@ export const solutionController = {
 
   async getById(req: Request, res: Response) {
     const sol = await solutionService.getById(Number(req.params.id));
-    sendSuccess(res, sol);
+    const data = sol.toJSON() as Record<string, any>;
+    data.content = sanitizeContent(data.content || '');
+    data.faqs = (data.faqs || []).map((faq: Record<string, any>) => ({ ...faq, answer: faq.answer ? sanitizeContent(faq.answer) : null }));
+    sendSuccess(res, data);
   },
 
   async create(req: Request, res: Response) {

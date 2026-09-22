@@ -7,6 +7,26 @@ import {
 } from '../validators/slider.validator';
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
 import { AppError } from '../utils/AppError';
+import sharp from 'sharp';
+
+async function imageDetails(file?: Express.Multer.File) {
+  if (!file) return {};
+  const metadata = await sharp(file.path).metadata();
+  return { image_url: `/uploads/${file.filename}`, image_width: metadata.width, image_height: metadata.height, image_bytes: file.size };
+}
+function mobileImage(req: Request) {
+  const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+  return files?.mobile_image?.[0] ? { mobile_image_url: `/uploads/${files.mobile_image[0].filename}` } : {};
+}
+
+function dateBounds(body: Record<string, unknown>) {
+  const result = { ...body };
+  if (result.start_date === '') result.start_date = null;
+  if (result.end_date === '') result.end_date = null;
+  if (typeof result.start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(result.start_date)) result.start_date = new Date(`${result.start_date}T00:00:00+07:00`);
+  if (typeof result.end_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(result.end_date)) result.end_date = new Date(`${result.end_date}T23:59:59+07:00`);
+  return result;
+}
 
 export const sliderController = {
   async getPublicByZoneCode(req: Request, res: Response) {
@@ -36,8 +56,9 @@ export const sliderController = {
 
   async createItem(req: Request, res: Response) {
     const dto = createSliderItemSchema.parse({
-      ...req.body,
-      image_url: req.file ? `/uploads/${req.file.filename}` : req.body.image_url,
+      ...dateBounds(req.body),
+      ...(await imageDetails(req.file)),
+      ...mobileImage(req),
     });
     const item = await sliderService.createItem(dto);
     req.auditContext = { module: 'sliders', action: 'create', targetId: item.id, newValue: dto };
@@ -47,8 +68,9 @@ export const sliderController = {
   async updateItem(req: Request, res: Response) {
     const id = Number(req.params.id);
     const dto = updateSliderItemSchema.parse({
-      ...req.body,
-      ...(req.file ? { image_url: `/uploads/${req.file.filename}` } : {}),
+      ...dateBounds(req.body),
+      ...(await imageDetails(req.file)),
+      ...mobileImage(req),
     });
     const item = await sliderService.updateItem(id, dto);
     req.auditContext = { module: 'sliders', action: 'update', targetId: id, newValue: dto };

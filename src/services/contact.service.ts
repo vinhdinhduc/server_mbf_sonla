@@ -1,8 +1,8 @@
 import { Contact } from '../models/Contact.model';
 import { AppError } from '../utils/AppError';
 import { CreateContactDto, UpdateContactDto } from '../validators/contact.validator';
-import { activeNotifier } from '../config/notifier';
 import { settingService } from './setting.service';
+import { emailService } from './email.service';
 
 export const contactService = {
   async create(dto: Omit<CreateContactDto, 'recaptcha_token'>) {
@@ -18,16 +18,11 @@ export const contactService = {
       settingService.getRawValue('site_name'),
       settingService.getRawValue('hotline'),
     ]);
-    if (notifyEmail) {
-      await activeNotifier.send(notifyEmail, 'new_contact', {
-        ...dto,
-        branch_name: branchName,
-        hotline,
-      }).catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error('Gửi email thông báo liên hệ thất bại:', err);
-      });
-    }
+    const variables = { customer_name: dto.name, phone: dto.phone, message: dto.message, branch_name: branchName || '', hotline: hotline || '' };
+    await Promise.all([
+      emailService.enqueue(notifyEmail, 'contact_new_staff', variables, `contact:${contact.id}:staff`),
+      emailService.enqueue(dto.email, 'contact_received_customer', variables, `contact:${contact.id}:customer`),
+    ]);
 
     return contact;
   },

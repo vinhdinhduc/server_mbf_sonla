@@ -16,6 +16,8 @@ import { aiRateLimit } from './middlewares/aiRateLimit.middleware';
 import { asyncHandler } from './utils/asyncHandler';
 import { sendSuccess } from './utils/apiResponse';
 import { securityHeaders } from './middlewares/securityHeaders.middleware';
+import { dynamicRateLimit } from './middlewares/dynamicRateLimit.middleware';
+import { scheduleEmailWorker } from './services/email.service';
 
 const app = express();
 
@@ -24,7 +26,7 @@ app.use(securityHeaders);
 
 // Khi chạy sau reverse proxy, Express lấy IP client từ X-Forwarded-For.
 // Local development vẫn trả về ::1 cho request từ chính máy này.
-app.set('trust proxy', env.NODE_ENV === 'production');
+app.set('trust proxy', env.TRUST_PROXY_HOPS);
 
 // CORS - doc danh sach domain cho phep tu ALLOWED_ORIGINS (muc 14), khong hard-code
 app.use(
@@ -36,6 +38,7 @@ app.use(
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use('/api', dynamicRateLimit);
 
 // Phuc vu file tinh da upload (anh tin tuc, giai phap, slider...)
 app.use('/uploads', express.static(path.resolve(process.cwd(), env.UPLOAD_DIR)));
@@ -73,6 +76,7 @@ app.use(errorHandlerMiddleware);
 async function bootstrap(): Promise<void> {
   await testDbConnection();
   scheduleBackupCron();
+  scheduleEmailWorker();
   app.listen(env.PORT, () => {
     // eslint-disable-next-line no-console
     console.log(

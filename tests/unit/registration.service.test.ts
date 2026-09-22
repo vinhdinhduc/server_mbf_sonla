@@ -6,10 +6,10 @@ import { Package } from '../../src/models/Package.model';
 import { Solution } from '../../src/models/Solution.model';
 import { registrationService } from '../../src/services/registration.service';
 import { settingService } from '../../src/services/setting.service';
-import { activeNotifier } from '../../src/config/notifier';
+import { emailService } from '../../src/services/email.service';
 
 jest.mock('../../src/config/database', () => ({
-  sequelize: { transaction: jest.fn() },
+  sequelize: { transaction: jest.fn(), query: jest.fn() },
 }));
 jest.mock('../../src/models/RegistrationGroup.model');
 jest.mock('../../src/models/RegistrationItem.model');
@@ -17,9 +17,8 @@ jest.mock('../../src/models/SimNumber.model');
 jest.mock('../../src/models/Package.model');
 jest.mock('../../src/models/Solution.model');
 jest.mock('../../src/services/setting.service');
-jest.mock('../../src/config/notifier', () => ({
-  activeNotifier: { send: jest.fn().mockResolvedValue(undefined) },
-}));
+jest.mock('../../src/services/email.service', () => ({ emailService: { enqueue: jest.fn().mockResolvedValue(undefined) } }));
+jest.mock('../../src/utils/registrationWorkflow', () => ({ allocateNumber: jest.fn().mockResolvedValue(1), assertTransition: jest.fn() }));
 
 const mockedSequelize = sequelize as jest.Mocked<typeof sequelize>;
 const mockedGroup = RegistrationGroup as jest.Mocked<typeof RegistrationGroup>;
@@ -30,6 +29,8 @@ const mockedSetting = settingService as jest.Mocked<typeof settingService>;
 describe('registration.service - submitCart', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedGroup.findOne.mockResolvedValue(null);
+    (sequelize.query as jest.Mock).mockResolvedValue([]);
     mockedSetting.getRawValue.mockResolvedValue('admin@mobifone-sonla.vn');
     mockedSim.findByPk.mockResolvedValue({
       id: 1,
@@ -98,6 +99,6 @@ describe('registration.service - submitCart', () => {
 
     await expect(registrationService.submitCart(dto as any)).rejects.toThrow('DB loi giua chung');
     // Khong duoc goi tiep sau khi transaction that bai (khong gui email, khong tra ve group)
-    expect(activeNotifier.send).not.toHaveBeenCalled();
+    expect(emailService.enqueue).not.toHaveBeenCalled();
   });
 });

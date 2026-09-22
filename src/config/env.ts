@@ -8,6 +8,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   APP_BASE_URL: z.string().url(),
+  PUBLIC_SITE_URL: z.string().url().optional(),
 
   DB_HOST: z.string().min(1),
   DB_PORT: z.coerce.number().default(3306),
@@ -20,6 +21,7 @@ const envSchema = z.object({
   APP_SECRET_KEY: z.string().min(32).default('change-this-app-secret-key-before-production-32'),
 
   ALLOWED_ORIGINS: z.string().min(1),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
 
   SEED_ADMIN_USERNAME: z.string().default('admin'),
   SEED_ADMIN_PASSWORD: z.string().min(6, 'SEED_ADMIN_PASSWORD phải có ít nhất 6 ký tự'),

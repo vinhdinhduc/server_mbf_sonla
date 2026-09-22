@@ -3,6 +3,7 @@ import {
   bulkSimStatusSchema,
   listAdminSimQuerySchema,
   listSimQuerySchema,
+  exportSimQuerySchema,
 } from '../../src/validators/sim.validator';
 
 describe('sim.validator', () => {
@@ -47,5 +48,12 @@ describe('sim.validator', () => {
       status: 'hidden',
     });
     expect(() => bulkSimStatusSchema.parse({ ids: [], status: 'sold' })).toThrow();
+  });
+
+  it('chỉ cho xuất các cột hợp lệ, không trùng lặp', () => {
+    expect(exportSimQuerySchema.parse({ scope: 'all', columns: 'phone,fee' }).columns).toEqual(['phone', 'fee']);
+    expect(() => exportSimQuerySchema.parse({ columns: 'phone,password' })).toThrow();
+    expect(() => exportSimQuerySchema.parse({ columns: 'phone,phone' })).toThrow();
+    expect(() => exportSimQuerySchema.parse({ columns: '' })).toThrow();
   });
 });

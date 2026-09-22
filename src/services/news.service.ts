@@ -43,7 +43,7 @@ export const newsService = {
 
   async create(dto: CreateNewsDto, authorId: number) {
     const existingSlug = await News.findOne({ where: { slug: dto.slug } });
-    if (existingSlug) throw AppError.badRequest('Slug da ton tai');
+    if (existingSlug) throw AppError.badRequest('Đường dẫn đã tồn tại');
 
     const news = await News.create({
       ...dto,
@@ -58,7 +58,7 @@ export const newsService = {
 
     if (dto.slug && dto.slug !== news.slug) {
       const existingSlug = await News.findOne({ where: { slug: dto.slug, id: { [Op.ne]: id } } });
-      if (existingSlug) throw AppError.badRequest('Slug da ton tai');
+      if (existingSlug) throw AppError.badRequest('Đường dẫn đã tồn tại');
     }
 
     const publishTransition = dto.status === 'published' && news.status !== 'published';

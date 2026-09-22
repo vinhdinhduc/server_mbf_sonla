@@ -7,7 +7,7 @@ import {
   CreationOptional,
 } from 'sequelize';
 
-export type RegistrationItemType = 'sim' | 'goi_cuoc' | 'giai_phap';
+export type RegistrationItemType = 'sim' | 'goi_cuoc' | 'giai_phap' | 'solution_plan';
 
 export class RegistrationItem extends Model<
   InferAttributes<RegistrationItem>,
@@ -24,6 +24,8 @@ export class RegistrationItem extends Model<
   declare reference_label: string;
 
   declare price_snapshot: CreationOptional<number | null>;
+  declare fee_snapshot: CreationOptional<number>;
+  declare quantity: CreationOptional<number>;
 }
 
 export function initRegistrationItemModel(sequelize: Sequelize): typeof RegistrationItem {
@@ -32,12 +34,14 @@ export function initRegistrationItemModel(sequelize: Sequelize): typeof Registra
       id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
       registration_group_id: { type: DataTypes.INTEGER, allowNull: false },
       type: {
-        type: DataTypes.ENUM('sim', 'goi_cuoc', 'giai_phap'),
+        type: DataTypes.ENUM('sim', 'goi_cuoc', 'giai_phap', 'solution_plan'),
         allowNull: false,
       },
       reference_id: { type: DataTypes.INTEGER, allowNull: false },
       reference_label: { type: DataTypes.STRING(255), allowNull: false },
       price_snapshot: { type: DataTypes.DECIMAL(12, 0), allowNull: true },
+      fee_snapshot: { type: DataTypes.DECIMAL(12, 0), allowNull: false, defaultValue: 0 },
+      quantity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     },
     {
       sequelize,

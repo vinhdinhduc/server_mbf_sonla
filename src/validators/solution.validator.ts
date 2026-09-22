@@ -21,6 +21,7 @@ const solutionPricingSchema = z.object({
   price: z.coerce.number().min(0),
   cycle_months: z.coerce.number().int().positive().default(1),
   condition_note: z.string().max(255).optional().nullable(),
+  status: z.enum(['active', 'inactive']).default('active'),
   sort_order: z.coerce.number().int().min(0).default(0),
 });
 const solutionFaqSchema = z.object({
@@ -31,6 +32,12 @@ const solutionFaqSchema = z.object({
 const solutionGallerySchema = z.object({
   image_url: z.string().min(1).max(255),
   caption: z.string().max(255).optional().nullable(),
+  sort_order: z.coerce.number().int().min(0).default(0),
+});
+const solutionStepSchema = z.object({
+  title: z.string().min(1).max(255),
+  description: z.string().optional().nullable(),
+  icon: z.string().max(100).optional().nullable(),
   sort_order: z.coerce.number().int().min(0).default(0),
 });
 
@@ -47,10 +54,21 @@ export const createSolutionSchema = z.object({
   video_url: z.string().max(255).optional().nullable(),
   is_hot: z.coerce.boolean().default(false),
   status: solutionStatusEnum.default('active'),
+  hero_badge: z.string().max(100).optional().nullable(),
+  hero_title: z.string().max(255).optional().nullable(),
+  hero_subtitle: z.string().optional().nullable(),
+  cta_label: z.string().max(100).optional().nullable(),
+  cta_url: z.string().max(255).optional().nullable(),
+  audience_cards: z.array(z.object({ icon: z.string().max(100), title: z.string().min(1).max(255), description: z.string() })).optional().nullable(),
+  section_visibility: z.record(z.boolean()).optional().nullable(),
+  section_titles: z.record(z.string().max(255)).optional().nullable(),
+  seo_title: z.string().max(60).optional().nullable(),
+  seo_description: z.string().max(160).optional().nullable(),
   features: z.array(solutionFeatureSchema).optional(),
   pricing: z.array(solutionPricingSchema).optional(),
   faqs: z.array(solutionFaqSchema).optional(),
   gallery: z.array(solutionGallerySchema).optional(),
+  steps: z.array(solutionStepSchema).optional(),
 });
 
 export const updateSolutionSchema = createSolutionSchema.partial();

@@ -1,4 +1,9 @@
-import { hasValidImageSignature, readImageDimensions } from '../../src/config/multer';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import sharp from 'sharp';
+import { Request, Response } from 'express';
+import { hasValidImageSignature, readImageDimensions, validateUploadedImage } from '../../src/config/multer';
 
 describe('bảo mật upload ảnh', () => {
   it('từ chối nội dung thực thi giả mạo ảnh', () => {
@@ -20,5 +25,27 @@ describe('bảo mật upload ảnh', () => {
     gif.writeUInt16LE(320, 6);
     gif.writeUInt16LE(240, 8);
     expect(readImageDimensions(gif)).toEqual({ width: 320, height: 240 });
+  });
+
+  it('chuyển ảnh tải lên thành WebP và tạo hai kích cỡ nhỏ', async () => {
+    const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'mfsl-upload-test-'));
+    try {
+      const originalPath = path.join(tempDir, 'sample.png');
+      await sharp({ create: { width: 1200, height: 800, channels: 3, background: '#0088cc' } })
+        .png().toFile(originalPath);
+      const file = { path: originalPath, filename: 'sample.png', mimetype: 'image/png', size: 0 } as Express.Multer.File;
+      const next = jest.fn();
+      await validateUploadedImage({ file } as Request, {} as Response, next);
+
+      expect(next).toHaveBeenCalledWith();
+      expect(file.filename).toBe('sample-optimized.webp');
+      expect(file.mimetype).toBe('image/webp');
+      expect(fs.existsSync(originalPath)).toBe(false);
+      expect((await sharp(await fs.promises.readFile(file.path)).metadata()).format).toBe('webp');
+      expect((await sharp(await fs.promises.readFile(path.join(tempDir, 'sample-480.webp'))).metadata()).width).toBe(480);
+      expect((await sharp(await fs.promises.readFile(path.join(tempDir, 'sample-960.webp'))).metadata()).width).toBe(960);
+    } finally {
+      await fs.promises.rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

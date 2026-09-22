@@ -70,7 +70,7 @@ export const shiftService = {
     const staff = await User.findByPk(dto.user_id);
     if (!staff) throw AppError.badRequest('Không tìm thấy nhân viên');
     if (staff.role !== 'giao_dich_vien') {
-      throw AppError.badRequest('Chi duoc xep lich truc cho nhan vien co vai tro giao_dich_vien');
+      throw AppError.badRequest('Chỉ được xếp lịch trực cho giao dịch viên');
     }
 
     if (dto.store_id) {

@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { simService } from '../services/sim.service';
+import { simExportService } from '../services/sim-export.service';
 import {
   bulkSimDeleteSchema,
   bulkSimStatusSchema,
@@ -148,7 +149,7 @@ export const simController = {
 
   async exportData(req: Request, res: Response) {
     const query = exportSimQuerySchema.parse(req.query);
-    const file = await simService.exportData(query);
+    const rowCount = await simExportService.count(query);
     const stamp = new Intl.DateTimeFormat('sv-SE', {
       timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
@@ -164,14 +165,16 @@ export const simController = {
       user_id: req.user?.id ?? null,
       action: 'export',
       module: 'sims',
-      description: `Xuất ${file.rowCount} dòng kho sim định dạng ${file.extension}; phạm vi ${query.scope}; bộ lọc ${JSON.stringify(query)}`,
+      description: `Xuất ${rowCount} dòng kho sim định dạng ${query.format}; phạm vi ${query.scope}; bộ lọc ${JSON.stringify(query)}`,
       ip_address: req.ip ?? null,
     });
-    res.setHeader('Content-Type', file.contentType);
     res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="kho-sim_${stamp}.${file.extension}"`,
+      'Content-Type',
+      query.format === 'csv'
+        ? 'text/csv; charset=utf-8'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
-    res.send(file.buffer);
+    res.setHeader('Content-Disposition', `attachment; filename="kho-sim_${stamp}.${query.format}"`);
+    await simExportService.stream(query, res);
   },
 };

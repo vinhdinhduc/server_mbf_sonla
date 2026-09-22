@@ -1,7 +1,9 @@
+/* eslint-disable no-bitwise, no-continue -- Phân tích bit header ảnh cần toán tử bit. */
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import sharp from 'sharp';
 import { NextFunction, Request, Response } from 'express';
 import { env } from './env';
 import { AppError } from '../utils/AppError';
@@ -22,7 +24,8 @@ const storage = multer.diskStorage({
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 export function hasValidImageSignature(buffer: Buffer): boolean {
-  const isJpeg = buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  const isJpeg =
+    buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
   const isPng =
     buffer.length >= 8 &&
     buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
@@ -69,7 +72,11 @@ export function readImageDimensions(buffer: Buffer): { width: number; height: nu
         continue;
       }
       const marker = buffer[offset + 1];
-      if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker)) {
+      if (
+        [0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(
+          marker,
+        )
+      ) {
         return { width: buffer.readUInt16BE(offset + 7), height: buffer.readUInt16BE(offset + 5) };
       }
       if (marker === 0xd8 || marker === 0xd9) {
@@ -107,22 +114,73 @@ export async function validateUploadedImage(
     next();
     return;
   }
+  const originalPath = req.file.path;
+  const basePath = originalPath.slice(0, -path.extname(originalPath).length);
+  const mainPath = `${basePath}-optimized.webp`;
+  const variantPaths = [480, 960].map((width) => `${basePath}-${width}.webp`);
   try {
-    const contents = await fs.promises.readFile(req.file.path);
+    const contents = await fs.promises.readFile(originalPath);
     if (!hasValidImageSignature(contents)) {
-      await fs.promises.unlink(req.file.path).catch(() => undefined);
-      next(AppError.badRequest('Nội dung file không phải là ảnh hợp lệ'));
-      return;
+      throw AppError.badRequest('Nội dung file không phải là ảnh hợp lệ');
     }
     const dimensions = readImageDimensions(contents);
     if (!dimensions || dimensions.width > 4096 || dimensions.height > 4096) {
-      await fs.promises.unlink(req.file.path).catch(() => undefined);
-      next(AppError.badRequest('Không đọc được kích thước ảnh hoặc ảnh vượt quá 4096 × 4096 px'));
-      return;
+      throw AppError.badRequest('Không đọc được kích thước ảnh hoặc ảnh vượt quá 4096 × 4096 px');
     }
+    const decoded = await sharp(contents, {
+      animated: true,
+      limitInputPixels: 4096 * 4096,
+    }).metadata();
+    if (!decoded.width || !decoded.height || decoded.width > 4096 || decoded.height > 4096) {
+      throw AppError.badRequest('Kích thước ảnh không hợp lệ');
+    }
+    const image = () => sharp(contents, { animated: true, limitInputPixels: 4096 * 4096 }).rotate();
+    const main = await image()
+      .resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 82 })
+      .toFile(mainPath);
+    await Promise.all(
+      [480, 960].map((width, index) =>
+        decoded.width > width
+          ? image()
+              .resize({ width, withoutEnlargement: true })
+              .webp({ quality: 80 })
+              .toFile(variantPaths[index])
+          : Promise.resolve(),
+      ),
+    );
+    await fs.promises.unlink(originalPath);
+    req.file.path = mainPath;
+    req.file.filename = path.basename(mainPath);
+    req.file.mimetype = 'image/webp';
+    req.file.size = main.size;
     next();
   } catch (error) {
-    await fs.promises.unlink(req.file.path).catch(() => undefined);
+    await Promise.all(
+      [originalPath, mainPath, ...variantPaths].map((filePath) =>
+        fs.promises.unlink(filePath).catch(() => undefined),
+      ),
+    );
+    next(error instanceof AppError ? error : AppError.badRequest('Không thể xử lý ảnh đã tải lên'));
+  }
+}
+
+/** Validate and optimize both desktop and mobile banner uploads. */
+export async function validateUploadedImages(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const files = Object.values((req.files || {}) as Record<string, Express.Multer.File[]>).flat();
+  const processed: string[] = [];
+  try {
+    for (const file of files) {
+      req.file = file;
+      await new Promise<void>((resolve, reject) => {
+        void validateUploadedImage(req, res, (error?: any) => error ? reject(error) : resolve());
+      });
+      processed.push(file.path);
+    }
+    req.file = files.find((file) => file.fieldname === 'image');
+    next();
+  } catch (error) {
+    await Promise.all(processed.map((filePath) => fs.promises.unlink(filePath).catch(() => undefined)));
     next(error);
   }
 }

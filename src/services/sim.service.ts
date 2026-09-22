@@ -187,6 +187,9 @@ export const simService = {
         'Ghi chú',
         'Ngày tạo',
       ];
+      const columnIndexes = query.columns.map((column) =>
+        ['phone', 'subscription', 'catalog', 'pattern', 'fee', 'commitment', 'status', 'note', 'createdAt'].indexOf(column),
+      );
       const lines = values.map((row) =>
         [
           `="${row.phone}"`,
@@ -198,13 +201,13 @@ export const simService = {
           row.status,
           row.note,
           row.createdAt.toISOString(),
-        ]
+        ].filter((_, index) => columnIndexes.includes(index))
           .map(escapeCsv)
           .join(','),
       );
       return {
         buffer: Buffer.from(
-          `\uFEFF${[header.map(escapeCsv).join(','), ...lines].join('\r\n')}`,
+          `\uFEFF${[header.filter((_, index) => columnIndexes.includes(index)).map(escapeCsv).join(','), ...lines].join('\r\n')}`,
           'utf8',
         ),
         contentType: 'text/csv; charset=utf-8',
@@ -225,7 +228,7 @@ export const simService = {
       { header: 'Trạng thái', key: 'status', width: 15 },
       { header: 'Ghi chú', key: 'note', width: 32 },
       { header: 'Ngày tạo', key: 'createdAt', width: 22 },
-    ];
+    ].filter((column) => query.columns.includes(column.key as typeof query.columns[number]));
     sheet.getRow(1).font = { bold: true };
     values.forEach((row) => sheet.addRow(row));
     const output = await workbook.xlsx.writeBuffer();

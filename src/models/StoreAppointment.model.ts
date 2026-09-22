@@ -19,6 +19,7 @@ export class StoreAppointment extends Model<
   declare id: CreationOptional<number>;
   declare customer_name: string;
   declare phone: string;
+  declare email: CreationOptional<string | null>;
   declare store_id: number;
   declare appointment_date: string;
   declare appointment_time: string;
@@ -36,6 +37,7 @@ export function initStoreAppointmentModel(sequelize: Sequelize): typeof StoreApp
       id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
       customer_name: { type: DataTypes.STRING(100), allowNull: false },
       phone: { type: DataTypes.STRING(20), allowNull: false },
+      email: { type: DataTypes.STRING(150), allowNull: true },
       store_id: { type: DataTypes.INTEGER, allowNull: false },
       appointment_date: { type: DataTypes.DATEONLY, allowNull: false },
       appointment_time: { type: DataTypes.TIME, allowNull: false },

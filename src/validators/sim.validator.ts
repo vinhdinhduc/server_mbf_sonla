@@ -26,7 +26,12 @@ export const createSimSchema = z.object({
 export const updateSimSchema = createSimSchema.partial();
 
 export const listSimQuerySchema = z.object({
-  q: z.string().trim().max(10).regex(/^[0-9*]+$/, 'Chỉ được nhập chữ số và dấu *').optional(),
+  q: z
+    .string()
+    .trim()
+    .max(10)
+    .regex(/^[0-9*]+$/, 'Chỉ được nhập chữ số và dấu *')
+    .optional(),
   prefix: z.string().optional(),
   catalog: simCatalogEnum.optional(),
   sim_type: simTypeEnum.optional(),
@@ -35,8 +40,16 @@ export const listSimQuerySchema = z.object({
 });
 
 export const listAdminSimQuerySchema = z.object({
-  q: z.string().trim().max(10).regex(/^[0-9*]+$/, 'Chỉ được nhập chữ số và dấu *').optional(),
-  prefix: z.string().regex(/^0\d{2}$/).optional(),
+  q: z
+    .string()
+    .trim()
+    .max(10)
+    .regex(/^[0-9*]+$/, 'Chỉ được nhập chữ số và dấu *')
+    .optional(),
+  prefix: z
+    .string()
+    .regex(/^0\d{2}$/)
+    .optional(),
   catalog: simCatalogEnum.optional(),
   sim_type: simTypeEnum.optional(),
   type: subscriptionTypeEnum.optional(),
@@ -52,6 +65,42 @@ export const exportSimQuerySchema = listAdminSimQuerySchema
   .extend({
     format: z.enum(['xlsx', 'csv']).default('xlsx'),
     scope: z.enum(['filtered', 'all']).default('filtered'),
+    columns: z
+      .string()
+      .optional()
+      .transform(
+        (value) =>
+          value?.split(',') ?? [
+            'phone',
+            'subscription',
+            'catalog',
+            'pattern',
+            'fee',
+            'commitment',
+            'status',
+            'note',
+            'createdAt',
+          ],
+      )
+      .pipe(
+        z
+          .array(
+            z.enum([
+              'phone',
+              'subscription',
+              'catalog',
+              'pattern',
+              'fee',
+              'commitment',
+              'status',
+              'note',
+              'createdAt',
+            ]),
+          )
+          .min(1)
+          .max(9)
+          .refine((values) => new Set(values).size === values.length, 'Cột xuất dữ liệu bị trùng'),
+      ),
   });
 
 export const bulkSimStatusSchema = z.object({

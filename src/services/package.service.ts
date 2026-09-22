@@ -5,23 +5,31 @@ import { CreatePackageDto, UpdatePackageDto } from '../validators/package.valida
 
 export const packageService = {
   async listPublic(groupType: string | undefined) {
-    const where: Record<string, unknown> = { status: 'active' };
+    const now = new Date();
+    const where: Record<string, unknown> = {
+      status: 'active',
+      deleted_at: null,
+      [Op.and]: [
+        { [Op.or]: [{ effective_from: null }, { effective_from: { [Op.lte]: now } }] },
+        { [Op.or]: [{ effective_to: null }, { effective_to: { [Op.gte]: now } }] },
+      ],
+    };
     if (groupType) where.group_type = groupType;
     return Package.findAll({ where, order: [['display_order', 'ASC']] });
   },
 
   async getPublicBySlug(slug: string) {
-    const pkg = await Package.findOne({ where: { slug, status: 'active' } });
+    const pkg = await Package.findOne({ where: { slug, status: 'active', deleted_at: null, [Op.and]: [{ [Op.or]: [{ effective_from: null }, { effective_from: { [Op.lte]: new Date() } }] }, { [Op.or]: [{ effective_to: null }, { effective_to: { [Op.gte]: new Date() } }] }] } });
     if (!pkg) throw AppError.notFound('Không tìm thấy gói cước');
     return pkg;
   },
 
   async listAdmin() {
-    return Package.findAll({ order: [['display_order', 'ASC']] });
+    return Package.findAll({ where: { deleted_at: null }, order: [['display_order', 'ASC']] });
   },
 
   async getById(id: number) {
-    const pkg = await Package.findByPk(id);
+    const pkg = await Package.findOne({ where: { id, deleted_at: null } });
     if (!pkg) throw AppError.notFound('Không tìm thấy gói cước');
     return pkg;
   },
@@ -44,6 +52,6 @@ export const packageService = {
 
   async remove(id: number) {
     const pkg = await this.getById(id);
-    await pkg.destroy();
+    await pkg.update({ status: 'inactive', deleted_at: new Date() });
   },
 };

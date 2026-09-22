@@ -7,6 +7,35 @@ import {
   UpdateSliderZoneDto,
 } from '../validators/slider.validator';
 import { attachImageUrls } from '../utils/buildImageUrl';
+import { Op } from 'sequelize';
+import { sliderEffectiveStatus } from '../utils/sliderStatus';
+import fs from 'fs/promises';
+import path from 'path';
+import { env } from '../config/env';
+import { Package } from '../models/Package.model';
+import { Solution } from '../models/Solution.model';
+import { News } from '../models/News.model';
+
+function withEffectiveStatus<T extends { status: string; start_date: Date | null; end_date: Date | null }>(item: T) {
+  const effective_status = sliderEffectiveStatus(item);
+  return { ...item, effective_status };
+}
+
+async function removeUnusedUpload(value: string | null) {
+  if (!value?.startsWith('/uploads/')) return;
+  const references = await Promise.all([
+    SliderItem.count({ where: { [Op.or]: [{ image_url: value }, { mobile_image_url: value }] } }),
+    Package.count({ where: { image_url: value } }),
+    Solution.count({ where: { thumbnail: value } }),
+    News.count({ where: { thumbnail: value } }),
+  ]);
+  if (references.some(Boolean)) return;
+  const name = path.basename(value);
+  if (!/^[a-zA-Z0-9_-]+\.(webp|png|jpg|jpeg|gif)$/.test(name)) return;
+  const root = path.resolve(process.cwd(), env.UPLOAD_DIR);
+  const names = name.endsWith('-optimized.webp') ? [name, name.replace('-optimized.webp', '-480.webp'), name.replace('-optimized.webp', '-960.webp')] : [name];
+  await Promise.all(names.map((filename) => fs.unlink(path.join(root, filename)).catch(() => undefined)));
+}
 
 export const sliderService = {
   /** GET /api/public/sliders/:zoneCode - chi tra cac item dang duoc bat */
@@ -18,6 +47,10 @@ export const sliderService = {
       where: {
         zone_id: zone.id,
         status: 'active',
+        [Op.and]: [
+          { [Op.or]: [{ start_date: null }, { start_date: { [Op.lte]: new Date() } }] },
+          { [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: new Date() } }] },
+        ],
       },
       order: [['display_order', 'ASC']],
     });
@@ -26,7 +59,7 @@ export const sliderService = {
       animation_type: zone.animation_type,
       autoplay_enabled: zone.autoplay_enabled,
       autoplay_speed_ms: zone.autoplay_speed_ms,
-      items: items.map((i) => attachImageUrls(i.toJSON(), ['image_url'])),
+      items: items.map((i) => withEffectiveStatus(attachImageUrls(i.toJSON(), ['image_url', 'mobile_image_url']))),
     };
   },
 
@@ -48,7 +81,7 @@ export const sliderService = {
       where: { zone_id: zoneId },
       order: [['display_order', 'ASC']],
     });
-    return items.map((item) => attachImageUrls(item.toJSON(), ['image_url']));
+    return items.map((item) => withEffectiveStatus(attachImageUrls(item.toJSON(), ['image_url', 'mobile_image_url'])));
   },
 
   async getItemById(id: number) {
@@ -65,12 +98,16 @@ export const sliderService = {
 
   async updateItem(id: number, dto: UpdateSliderItemDto) {
     const item = await this.getItemById(id);
+    const previous = [item.image_url, item.mobile_image_url];
     await item.update(dto as any);
+    await Promise.all(previous.filter((value) => value && value !== item.image_url && value !== item.mobile_image_url).map((value) => removeUnusedUpload(value)));
     return item;
   },
 
   async removeItem(id: number) {
     const item = await this.getItemById(id);
+    const images = [item.image_url, item.mobile_image_url];
     await item.destroy();
+    await Promise.all(images.map((image) => removeUnusedUpload(image)));
   },
 };

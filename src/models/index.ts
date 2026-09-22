@@ -21,6 +21,7 @@ import { initSolutionPricingModel, SolutionPricing } from './SolutionPricing.mod
 import { initSolutionFaqModel, SolutionFaq } from './SolutionFaq.model';
 import { initSolutionGalleryModel, SolutionGallery } from './SolutionGallery.model';
 import { initAiKnowledgeEntryModel, AiKnowledgeEntry } from './AiKnowledgeEntry.model';
+import { initSolutionStepModel, SolutionStep } from './SolutionStep.model';
 
 // 1. Khoi tao tat ca model tren cung 1 Sequelize instance
 initUserModel(sequelize);
@@ -45,6 +46,7 @@ initSolutionPricingModel(sequelize);
 initSolutionFaqModel(sequelize);
 initSolutionGalleryModel(sequelize);
 initAiKnowledgeEntryModel(sequelize);
+initSolutionStepModel(sequelize);
 
 // 2. Khai bao association (hasMany / belongsTo) dung theo muc 5.17
 
@@ -103,6 +105,8 @@ Solution.hasMany(SolutionFaq, { foreignKey: 'solution_id', as: 'faqs' });
 SolutionFaq.belongsTo(Solution, { foreignKey: 'solution_id', as: 'solution' });
 Solution.hasMany(SolutionGallery, { foreignKey: 'solution_id', as: 'gallery' });
 SolutionGallery.belongsTo(Solution, { foreignKey: 'solution_id', as: 'solution' });
+Solution.hasMany(SolutionStep, { foreignKey: 'solution_id', as: 'steps' });
+SolutionStep.belongsTo(Solution, { foreignKey: 'solution_id', as: 'solution' });
 
 export {
   sequelize,
@@ -128,4 +132,5 @@ export {
   SolutionFaq,
   SolutionGallery,
   AiKnowledgeEntry,
+  SolutionStep,
 };

@@ -19,6 +19,7 @@ export class SolutionPricing extends Model<
   declare cycle_months: CreationOptional<number>;
   declare condition_note: CreationOptional<string | null>;
   declare sort_order: CreationOptional<number>;
+  declare status: CreationOptional<'active' | 'inactive'>;
 }
 
 export function initSolutionPricingModel(sequelize: Sequelize): typeof SolutionPricing {
@@ -32,6 +33,7 @@ export function initSolutionPricingModel(sequelize: Sequelize): typeof SolutionP
       cycle_months: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
       condition_note: { type: DataTypes.STRING(255), allowNull: true },
       sort_order: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      status: { type: DataTypes.ENUM('active', 'inactive'), allowNull: false, defaultValue: 'active' },
     },
     { sequelize, tableName: 'solution_pricing', modelName: 'SolutionPricing', timestamps: false },
   );

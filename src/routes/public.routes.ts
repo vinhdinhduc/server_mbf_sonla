@@ -44,6 +44,8 @@ router.post('/appointments', asyncHandler(appointmentController.create));
 router.post('/newsletter/subscribe', asyncHandler(newsletterController.subscribe));
 
 router.post('/registrations', asyncHandler(registrationController.submit));
+router.post('/registrations/lookup', asyncHandler(registrationController.lookup));
+router.post('/registrations/receipt', asyncHandler(registrationController.receiptPublic));
 
 router.post('/contacts', asyncHandler(contactController.create));
 

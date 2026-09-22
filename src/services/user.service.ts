@@ -4,6 +4,7 @@ import { AppError } from '../utils/AppError';
 import { CreateUserDto, UpdateUserDto } from '../validators/user.validator';
 import { buildImageUrl } from '../utils/buildImageUrl';
 import { Store } from '../models/Store.model';
+import { emailService } from './email.service';
 
 const SALT_ROUNDS = 12;
 
@@ -49,6 +50,7 @@ export const userService = {
       public_phone: dto.public_phone ?? null,
       public_zalo: dto.public_zalo ?? null,
     });
+    await emailService.enqueue(user.email, 'account_created', { customer_name: user.full_name }, `account:${user.id}:created`);
     return this.getById(user.id);
   },
 
