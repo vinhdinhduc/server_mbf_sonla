@@ -117,6 +117,23 @@ export const newsService = {
       order: [['published_at', 'DESC']],
       limit: 3,
     });
+    if (related.length < 3) {
+      const additional = await News.findAll({
+        where: { ...publicWhere(), id: { [Op.notIn]: [news.id, ...related.map((item) => item.id)] } },
+        order: [['published_at', 'DESC']],
+        limit: 3 - related.length,
+      });
+      related.push(...additional);
+    }
+    const popular = await News.findAll({
+      where: { ...publicWhere(), id: { [Op.ne]: news.id } },
+      order: [['view_count', 'DESC'], ['published_at', 'DESC']],
+      limit: 3,
+    });
+    const promotion = await News.findOne({
+      where: { ...publicWhere(), category: 'khuyen_mai' },
+      order: [['published_at', 'DESC']],
+    });
     const author = news.author_id
       ? (
           await sequelize.query<{ full_name: string }>('SELECT full_name FROM users WHERE id=:id', {
@@ -130,6 +147,8 @@ export const newsService = {
       author_name: author?.full_name || null,
       tags: (await tagsFor([news.id])).get(news.id) || [],
       related: related.map(present),
+      popular: popular.map(present),
+      promotion: promotion ? present(promotion) : null,
     };
   },
   async preview(token: string) {
