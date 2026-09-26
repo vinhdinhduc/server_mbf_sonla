@@ -11,6 +11,12 @@ export const contactService = {
       phone: dto.phone,
       email: dto.email,
       message: dto.message,
+      topic: dto.topic,
+      store_id: dto.store_id ?? null,
+      consent_at: new Date(),
+    });
+    await contact.update({
+      code: `LH-${new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: '2-digit', month: '2-digit', day: '2-digit' }).format(new Date()).replace(/-/g, '')}-${String(contact.id).padStart(5, '0')}`,
     });
 
     const [notifyEmail, branchName, hotline] = await Promise.all([
@@ -18,10 +24,26 @@ export const contactService = {
       settingService.getRawValue('site_name'),
       settingService.getRawValue('hotline'),
     ]);
-    const variables = { customer_name: dto.name, phone: dto.phone, message: dto.message, branch_name: branchName || '', hotline: hotline || '' };
+    const variables = {
+      customer_name: dto.name,
+      phone: dto.phone,
+      message: dto.message,
+      branch_name: branchName || '',
+      hotline: hotline || '',
+    };
     await Promise.all([
-      emailService.enqueue(notifyEmail, 'contact_new_staff', variables, `contact:${contact.id}:staff`),
-      emailService.enqueue(dto.email, 'contact_received_customer', variables, `contact:${contact.id}:customer`),
+      emailService.enqueue(
+        notifyEmail,
+        'contact_new_staff',
+        variables,
+        `contact:${contact.id}:staff`,
+      ),
+      emailService.enqueue(
+        dto.email,
+        'contact_received_customer',
+        variables,
+        `contact:${contact.id}:customer`,
+      ),
     ]);
 
     return contact;

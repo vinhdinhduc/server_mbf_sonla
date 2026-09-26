@@ -22,6 +22,10 @@ import { initSolutionFaqModel, SolutionFaq } from './SolutionFaq.model';
 import { initSolutionGalleryModel, SolutionGallery } from './SolutionGallery.model';
 import { initAiKnowledgeEntryModel, AiKnowledgeEntry } from './AiKnowledgeEntry.model';
 import { initSolutionStepModel, SolutionStep } from './SolutionStep.model';
+import { initJobModel, Job } from './Job.model';
+import { initJobApplicationModel, JobApplication } from './JobApplication.model';
+import { initUtilityModel, Utility } from './Utility.model';
+import { initDownloadModel, Download } from './Download.model';
 
 // 1. Khoi tao tat ca model tren cung 1 Sequelize instance
 initUserModel(sequelize);
@@ -47,6 +51,10 @@ initSolutionFaqModel(sequelize);
 initSolutionGalleryModel(sequelize);
 initAiKnowledgeEntryModel(sequelize);
 initSolutionStepModel(sequelize);
+initJobModel(sequelize);
+initJobApplicationModel(sequelize);
+initUtilityModel(sequelize);
+initDownloadModel(sequelize);
 
 // 2. Khai bao association (hasMany / belongsTo) dung theo muc 5.17
 
@@ -107,6 +115,8 @@ Solution.hasMany(SolutionGallery, { foreignKey: 'solution_id', as: 'gallery' });
 SolutionGallery.belongsTo(Solution, { foreignKey: 'solution_id', as: 'solution' });
 Solution.hasMany(SolutionStep, { foreignKey: 'solution_id', as: 'steps' });
 SolutionStep.belongsTo(Solution, { foreignKey: 'solution_id', as: 'solution' });
+Job.hasMany(JobApplication, { foreignKey: 'job_id', as: 'applications' });
+JobApplication.belongsTo(Job, { foreignKey: 'job_id', as: 'job' });
 
 export {
   sequelize,
@@ -133,4 +143,8 @@ export {
   SolutionGallery,
   AiKnowledgeEntry,
   SolutionStep,
+  Job,
+  JobApplication,
+  Utility,
+  Download,
 };

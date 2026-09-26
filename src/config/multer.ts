@@ -1,4 +1,4 @@
-/* eslint-disable no-bitwise, no-continue -- Phân tích bit header ảnh cần toán tử bit. */
+/* eslint-disable no-bitwise, no-continue, no-restricted-syntax, no-await-in-loop, no-void, @typescript-eslint/no-explicit-any -- Kiểm tra tệp tuần tự và phân tích bit magic bytes. */
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -9,9 +9,11 @@ import { env } from './env';
 import { AppError } from '../utils/AppError';
 
 const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR);
+const privateCvDir = path.resolve(process.cwd(), 'private', 'cv');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+if (!fs.existsSync(privateCvDir)) fs.mkdirSync(privateCvDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
@@ -166,21 +168,27 @@ export async function validateUploadedImage(
 }
 
 /** Validate and optimize both desktop and mobile banner uploads. */
-export async function validateUploadedImages(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function validateUploadedImages(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const files = Object.values((req.files || {}) as Record<string, Express.Multer.File[]>).flat();
   const processed: string[] = [];
   try {
     for (const file of files) {
       req.file = file;
       await new Promise<void>((resolve, reject) => {
-        void validateUploadedImage(req, res, (error?: any) => error ? reject(error) : resolve());
+        void validateUploadedImage(req, res, (error?: any) => (error ? reject(error) : resolve()));
       });
       processed.push(file.path);
     }
     req.file = files.find((file) => file.fieldname === 'image');
     next();
   } catch (error) {
-    await Promise.all(processed.map((filePath) => fs.promises.unlink(filePath).catch(() => undefined)));
+    await Promise.all(
+      processed.map((filePath) => fs.promises.unlink(filePath).catch(() => undefined)),
+    );
     next(error);
   }
 }
@@ -196,3 +204,42 @@ export const uploadExcel = multer({
     cb(null, true);
   },
 });
+
+const cvStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, privateCvDir),
+  filename: (_req, file, cb) =>
+    cb(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`),
+});
+export const uploadCv = multer({
+  storage: cvStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /\.(pdf|docx)$/i.test(file.originalname)),
+});
+export function hasValidCvSignature(buffer: Buffer, originalName: string) {
+  const isPdf = buffer.subarray(0, 5).toString('ascii') === '%PDF-';
+  const isDocx =
+    buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04;
+  return (/\.pdf$/i.test(originalName) && isPdf) || (/\.docx$/i.test(originalName) && isDocx);
+}
+export async function validateUploadedCv(req: Request, _res: Response, next: NextFunction) {
+  if (!req.file) {
+    next(AppError.badRequest('Vui lòng tải CV'));
+    return;
+  }
+  try {
+    const head = Buffer.alloc(8);
+    const handle = await fs.promises.open(req.file.path, 'r');
+    await handle.read(head, 0, 8, 0);
+    await handle.close();
+    if (!hasValidCvSignature(head, req.file.originalname))
+      throw AppError.badRequest('Nội dung CV không đúng định dạng PDF/DOCX');
+    req.file.mimetype =
+      head.subarray(0, 5).toString('ascii') === '%PDF-'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    next();
+  } catch (error) {
+    await fs.promises.unlink(req.file.path).catch(() => undefined);
+    next(error);
+  }
+}

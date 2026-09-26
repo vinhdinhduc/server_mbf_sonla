@@ -17,17 +17,35 @@ export class StoreAppointment extends Model<
   InferCreationAttributes<StoreAppointment>
 > {
   declare id: CreationOptional<number>;
+
   declare customer_name: string;
+
   declare phone: string;
+
   declare email: CreationOptional<string | null>;
+
   declare store_id: number;
+
   declare appointment_date: string;
+
   declare appointment_time: string;
+
   declare note: CreationOptional<string | null>;
+
   declare status: CreationOptional<AppointmentStatus>;
+
   declare assigned_to: CreationOptional<number | null>;
+
+  declare code: CreationOptional<string | null>;
+
+  declare manage_token: CreationOptional<string | null>;
+
+  declare cancelled_at: CreationOptional<Date | null>;
+
   declare created_at: CreationOptional<Date>;
+
   declare store?: NonAttribute<Store>;
+
   declare assignee?: NonAttribute<User>;
 }
 
@@ -48,6 +66,9 @@ export function initStoreAppointmentModel(sequelize: Sequelize): typeof StoreApp
         defaultValue: 'moi',
       },
       assigned_to: { type: DataTypes.INTEGER, allowNull: true },
+      code: { type: DataTypes.STRING(24), allowNull: true },
+      manage_token: { type: DataTypes.STRING(64), allowNull: true },
+      cancelled_at: { type: DataTypes.DATE, allowNull: true },
       created_at: DataTypes.DATE,
     },
     {

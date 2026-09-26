@@ -25,6 +25,18 @@ export class AiChatLog extends Model<
 
   declare ip_address: string;
 
+  declare input_tokens: CreationOptional<number>;
+
+  declare output_tokens: CreationOptional<number>;
+
+  declare estimated_cost: CreationOptional<number>;
+
+  declare provider: CreationOptional<string | null>;
+
+  declare model: CreationOptional<string | null>;
+
+  declare latency_ms: CreationOptional<number | null>;
+
   declare created_at: CreationOptional<Date>;
 }
 
@@ -38,6 +50,12 @@ export function initAiChatLogModel(sequelize: Sequelize): typeof AiChatLog {
       was_helpful: { type: DataTypes.BOOLEAN, allowNull: true },
       flagged_for_review: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       ip_address: { type: DataTypes.STRING(45), allowNull: false },
+      input_tokens: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      output_tokens: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      estimated_cost: { type: DataTypes.DECIMAL(12, 6), allowNull: false, defaultValue: 0 },
+      provider: { type: DataTypes.STRING(30), allowNull: true },
+      model: { type: DataTypes.STRING(100), allowNull: true },
+      latency_ms: { type: DataTypes.INTEGER, allowNull: true },
       created_at: DataTypes.DATE,
     },
     {

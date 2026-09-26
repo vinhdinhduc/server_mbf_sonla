@@ -4,13 +4,14 @@ import {
   createNewsSchema,
   listNewsQuerySchema,
   updateNewsSchema,
+  autosaveNewsSchema,
 } from '../validators/news.validator';
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
 
 export const newsController = {
   async listPublic(req: Request, res: Response) {
     const query = listNewsQuerySchema.parse(req.query);
-    const result = await newsService.listPublic(query.category, query.page, query.page_size);
+    const result = await newsService.listPublic(query);
     sendSuccess(res, result);
   },
 
@@ -19,9 +20,38 @@ export const newsController = {
     sendSuccess(res, news);
   },
 
-  async listAdmin(_req: Request, res: Response) {
-    const rows = await newsService.listAdmin();
+  async featured(_req: Request, res: Response) {
+    sendSuccess(res, await newsService.featured());
+  },
+  async preview(req: Request, res: Response) {
+    sendSuccess(res, await newsService.preview(String(req.params.token)));
+  },
+  async view(req: Request, res: Response) {
+    await newsService.countView(
+      req.params.slug,
+      String(req.body.visitor_id || req.ip),
+      req.get('user-agent') || '',
+    );
+    sendSuccess(res, null);
+  },
+
+  async listAdmin(req: Request, res: Response) {
+    const rows = await newsService.listAdmin(listNewsQuerySchema.parse(req.query));
     sendSuccess(res, rows);
+  },
+
+  async autosave(req: Request, res: Response) {
+    sendSuccess(
+      res,
+      await newsService.autosave(Number(req.params.id), autosaveNewsSchema.parse(req.body).content),
+    );
+  },
+  async duplicate(req: Request, res: Response) {
+    sendCreated(
+      res,
+      await newsService.duplicate(Number(req.params.id), req.user!.id),
+      'Đã nhân bản tin',
+    );
   },
 
   async getById(req: Request, res: Response) {

@@ -3,7 +3,14 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { checkRole } from '../middlewares/checkRole.middleware';
 import { auditLogger } from '../middlewares/auditLogger.middleware';
-import { uploadImage, uploadExcel, validateUploadedImage, validateUploadedImages } from '../config/multer';
+import {
+  uploadImage,
+  uploadExcel,
+  validateUploadedImage,
+  validateUploadedImages,
+} from '../config/multer';
+import { jobController } from '../controllers/job.controller';
+import { utilityController } from '../controllers/utility.controller';
 
 import { userController } from '../controllers/user.controller';
 import { newsController } from '../controllers/news.controller';
@@ -41,29 +48,107 @@ router.use(authMiddleware);
 router.get('/dashboard', checkRole([...DASHBOARD_ROLES]), asyncHandler(dashboardController.get));
 router.get('/health', checkRole([...DASHBOARD_ROLES]), asyncHandler(dashboardController.health));
 router.get('/rate-limits', checkRole([...ADMIN_ONLY]), asyncHandler(rateLimitController.list));
-router.get('/rate-limits/stats', checkRole([...ADMIN_ONLY]), asyncHandler(rateLimitController.stats));
-router.put('/rate-limits/policies/:key', checkRole([...ADMIN_ONLY]), auditLogger('rate_limits', 'update'), asyncHandler(rateLimitController.save));
-router.post('/rate-limits/rules', checkRole([...ADMIN_ONLY]), auditLogger('rate_limits', 'create'), asyncHandler(rateLimitController.addRule));
-router.delete('/rate-limits/rules/:id', checkRole([...ADMIN_ONLY]), auditLogger('rate_limits', 'delete'), asyncHandler(rateLimitController.removeRule));
-router.post('/rate-limits/unblock', checkRole([...ADMIN_ONLY]), auditLogger('rate_limits', 'update'), asyncHandler(rateLimitController.unblock));
-router.post('/rate-limits/reset', checkRole([...ADMIN_ONLY]), auditLogger('rate_limits', 'update'), asyncHandler(rateLimitController.reset));
+router.get(
+  '/rate-limits/stats',
+  checkRole([...ADMIN_ONLY]),
+  asyncHandler(rateLimitController.stats),
+);
+router.put(
+  '/rate-limits/policies/:key',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('rate_limits', 'update'),
+  asyncHandler(rateLimitController.save),
+);
+router.post(
+  '/rate-limits/rules',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('rate_limits', 'create'),
+  asyncHandler(rateLimitController.addRule),
+);
+router.delete(
+  '/rate-limits/rules/:id',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('rate_limits', 'delete'),
+  asyncHandler(rateLimitController.removeRule),
+);
+router.post(
+  '/rate-limits/unblock',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('rate_limits', 'update'),
+  asyncHandler(rateLimitController.unblock),
+);
+router.post(
+  '/rate-limits/reset',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('rate_limits', 'update'),
+  asyncHandler(rateLimitController.reset),
+);
 router.get('/email/config', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.config));
-router.put('/email/config', checkRole([...ADMIN_ONLY]), auditLogger('email', 'update'), asyncHandler(emailController.saveConfig));
+router.put(
+  '/email/config',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('email', 'update'),
+  asyncHandler(emailController.saveConfig),
+);
 router.post('/email/verify', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.verify));
-router.post('/email/test', checkRole([...ADMIN_ONLY]), auditLogger('email', 'update'), asyncHandler(emailController.test));
+router.post(
+  '/email/test',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('email', 'update'),
+  asyncHandler(emailController.test),
+);
 router.get('/email/templates', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.templates));
-router.put('/email/templates/:key', checkRole([...ADMIN_ONLY]), auditLogger('email', 'update'), asyncHandler(emailController.saveTemplate));
-router.get('/email/templates/:key/preview', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.preview));
-router.post('/email/templates/:key/restore', checkRole([...ADMIN_ONLY]), auditLogger('email', 'update'), asyncHandler(emailController.restore));
+router.put(
+  '/email/templates/:key',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('email', 'update'),
+  asyncHandler(emailController.saveTemplate),
+);
+router.get(
+  '/email/templates/:key/preview',
+  checkRole([...ADMIN_ONLY]),
+  asyncHandler(emailController.preview),
+);
+router.post(
+  '/email/templates/:key/restore',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('email', 'update'),
+  asyncHandler(emailController.restore),
+);
 router.get('/email/logs', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.logs));
-router.post('/email/logs/:id/retry', checkRole([...ADMIN_ONLY]), auditLogger('email', 'update'), asyncHandler(emailController.retry));
-router.get('/email/suppressions', checkRole([...ADMIN_ONLY]), asyncHandler(emailController.suppressions));
-router.post('/email/suppressions', checkRole([...ADMIN_ONLY]), auditLogger('email', 'create'), asyncHandler(emailController.suppress));
-router.delete('/email/suppressions', checkRole([...ADMIN_ONLY]), auditLogger('email', 'delete'), asyncHandler(emailController.unsuppress));
-router.post('/media', checkRole([...CONTENT_ROLES]), uploadImage.single('image'), validateUploadedImage, (req, res) => {
-  if (!req.file) throw AppError.badRequest('Thiếu ảnh tải lên');
-  return sendSuccess(res, { url: `/uploads/${req.file.filename}` });
-});
+router.post(
+  '/email/logs/:id/retry',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('email', 'update'),
+  asyncHandler(emailController.retry),
+);
+router.get(
+  '/email/suppressions',
+  checkRole([...ADMIN_ONLY]),
+  asyncHandler(emailController.suppressions),
+);
+router.post(
+  '/email/suppressions',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('email', 'create'),
+  asyncHandler(emailController.suppress),
+);
+router.delete(
+  '/email/suppressions',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('email', 'delete'),
+  asyncHandler(emailController.unsuppress),
+);
+router.post(
+  '/media',
+  checkRole([...CONTENT_ROLES]),
+  uploadImage.single('image'),
+  validateUploadedImage,
+  (req, res) => {
+    if (!req.file) throw AppError.badRequest('Thiếu ảnh tải lên');
+    return sendSuccess(res, { url: `/uploads/${req.file.filename}` });
+  },
+);
 
 router.get('/ai-settings', checkRole([...AI_ROLES]), asyncHandler(aiController.getSettings));
 router.put('/ai-settings', checkRole([...AI_ROLES]), asyncHandler(aiController.updateSettings));
@@ -86,6 +171,8 @@ router.delete(
 );
 router.get('/ai-chat-logs', checkRole([...AI_ROLES]), asyncHandler(aiController.listLogs));
 router.put('/ai-chat-logs/:id', checkRole([...AI_ROLES]), asyncHandler(aiController.updateLog));
+router.get('/ai-stats', checkRole([...AI_ROLES]), asyncHandler(aiController.stats));
+router.post('/ai-playground', checkRole([...AI_ROLES]), asyncHandler(aiController.playground));
 
 // ============== Users - chi admin ==============
 router.get('/users', checkRole([...ADMIN_ONLY]), asyncHandler(userController.list));
@@ -116,6 +203,17 @@ router.delete(
 // ============== News - admin & chuyen_vien ==============
 router.get('/news', checkRole([...CONTENT_ROLES]), asyncHandler(newsController.listAdmin));
 router.get('/news/:id', checkRole([...CONTENT_ROLES]), asyncHandler(newsController.getById));
+router.put(
+  '/news/:id/autosave',
+  checkRole([...CONTENT_ROLES]),
+  asyncHandler(newsController.autosave),
+);
+router.post(
+  '/news/:id/duplicate',
+  checkRole([...CONTENT_ROLES]),
+  auditLogger('news', 'create'),
+  asyncHandler(newsController.duplicate),
+);
 router.post(
   '/news',
   checkRole([...CONTENT_ROLES]),
@@ -189,6 +287,100 @@ router.delete(
   checkRole(['admin']),
   auditLogger('sims', 'delete'),
   asyncHandler(simController.bulkRemove),
+);
+
+router.get('/jobs', checkRole([...CONTENT_ROLES]), asyncHandler(jobController.listAdmin));
+router.get(
+  '/jobs/applications',
+  checkRole([...CONTENT_ROLES]),
+  asyncHandler(jobController.applications),
+);
+router.get(
+  '/jobs/applications/export',
+  checkRole([...CONTENT_ROLES]),
+  asyncHandler(jobController.exportApplications),
+);
+router.get(
+  '/jobs/applications/:id/cv',
+  checkRole([...CONTENT_ROLES]),
+  asyncHandler(jobController.cv),
+);
+router.patch(
+  '/jobs/applications/:id',
+  checkRole([...CONTENT_ROLES]),
+  auditLogger('job_applications', 'update'),
+  asyncHandler(jobController.updateApplication),
+);
+router.get('/jobs/:id', checkRole([...CONTENT_ROLES]), asyncHandler(jobController.get));
+router.post(
+  '/jobs',
+  checkRole([...CONTENT_ROLES]),
+  auditLogger('jobs', 'create'),
+  asyncHandler(jobController.create),
+);
+router.put(
+  '/jobs/:id',
+  checkRole([...CONTENT_ROLES]),
+  auditLogger('jobs', 'update'),
+  asyncHandler(jobController.update),
+);
+router.delete(
+  '/jobs/:id',
+  checkRole([...CONTENT_ROLES]),
+  auditLogger('jobs', 'delete'),
+  asyncHandler(jobController.remove),
+);
+router.get('/utilities', checkRole([...CONTENT_ROLES]), asyncHandler(utilityController.adminList));
+router.get(
+  '/utilities/downloads',
+  checkRole([...CONTENT_ROLES]),
+  asyncHandler(utilityController.adminDownloads),
+);
+router.post(
+  '/utilities/downloads',
+  checkRole([...CONTENT_ROLES]),
+  auditLogger('downloads', 'create'),
+  asyncHandler(utilityController.createDownload),
+);
+router.put(
+  '/utilities/downloads/:id',
+  checkRole([...CONTENT_ROLES]),
+  auditLogger('downloads', 'update'),
+  asyncHandler(utilityController.updateDownload),
+);
+router.delete(
+  '/utilities/downloads/:id',
+  checkRole([...CONTENT_ROLES]),
+  auditLogger('downloads', 'delete'),
+  asyncHandler(utilityController.removeDownload),
+);
+router.get(
+  '/utilities/:id/qr/:platform',
+  checkRole([...CONTENT_ROLES]),
+  asyncHandler(utilityController.qr),
+);
+router.get('/utilities/:id', checkRole([...CONTENT_ROLES]), asyncHandler(utilityController.get));
+router.post(
+  '/utilities',
+  checkRole([...CONTENT_ROLES]),
+  uploadImage.single('image'),
+  validateUploadedImage,
+  auditLogger('utilities', 'create'),
+  asyncHandler(utilityController.create),
+);
+router.put(
+  '/utilities/:id',
+  checkRole([...CONTENT_ROLES]),
+  uploadImage.single('image'),
+  validateUploadedImage,
+  auditLogger('utilities', 'update'),
+  asyncHandler(utilityController.update),
+);
+router.delete(
+  '/utilities/:id',
+  checkRole([...CONTENT_ROLES]),
+  auditLogger('utilities', 'delete'),
+  asyncHandler(utilityController.remove),
 );
 router.post(
   '/sims',
@@ -297,7 +489,10 @@ router.get(
 router.post(
   '/sliders/items',
   checkRole([...CONTENT_ROLES]),
-  uploadImage.fields([{ name: 'image', maxCount: 1 }, { name: 'mobile_image', maxCount: 1 }]),
+  uploadImage.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'mobile_image', maxCount: 1 },
+  ]),
   validateUploadedImages,
   auditLogger('sliders', 'create'),
   asyncHandler(sliderController.createItem),
@@ -305,7 +500,10 @@ router.post(
 router.put(
   '/sliders/items/:id',
   checkRole([...CONTENT_ROLES]),
-  uploadImage.fields([{ name: 'image', maxCount: 1 }, { name: 'mobile_image', maxCount: 1 }]),
+  uploadImage.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'mobile_image', maxCount: 1 },
+  ]),
   validateUploadedImages,
   auditLogger('sliders', 'update'),
   asyncHandler(sliderController.updateItem),
@@ -360,10 +558,26 @@ router.get(
   checkRole([...REGISTRATION_ROLES]),
   asyncHandler(registrationController.list),
 );
-router.get('/registration-groups/export', checkRole([...REGISTRATION_ROLES]), asyncHandler(registrationController.exportExcel));
-router.get('/registration-groups/counts', checkRole([...REGISTRATION_ROLES]), asyncHandler(registrationController.counts));
-router.get('/registration-groups/:id', checkRole([...REGISTRATION_ROLES]), asyncHandler(registrationController.getById));
-router.get('/registration-groups/:id/receipt', checkRole([...REGISTRATION_ROLES]), asyncHandler(registrationController.receiptAdmin));
+router.get(
+  '/registration-groups/export',
+  checkRole([...REGISTRATION_ROLES]),
+  asyncHandler(registrationController.exportExcel),
+);
+router.get(
+  '/registration-groups/counts',
+  checkRole([...REGISTRATION_ROLES]),
+  asyncHandler(registrationController.counts),
+);
+router.get(
+  '/registration-groups/:id',
+  checkRole([...REGISTRATION_ROLES]),
+  asyncHandler(registrationController.getById),
+);
+router.get(
+  '/registration-groups/:id/receipt',
+  checkRole([...REGISTRATION_ROLES]),
+  asyncHandler(registrationController.receiptAdmin),
+);
 router.patch(
   '/registration-groups/:id',
   checkRole([...REGISTRATION_ROLES]),

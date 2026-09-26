@@ -18,6 +18,9 @@ import { sendSuccess } from './utils/apiResponse';
 import { securityHeaders } from './middlewares/securityHeaders.middleware';
 import { dynamicRateLimit } from './middlewares/dynamicRateLimit.middleware';
 import { scheduleEmailWorker } from './services/email.service';
+import cron from 'node-cron';
+import { newsService } from './services/news.service';
+import fs from 'fs';
 
 const app = express();
 
@@ -38,6 +41,7 @@ app.use(
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => { const started = Date.now(); res.on('finish', () => { if (env.NODE_ENV === 'production') console.log(JSON.stringify({ level: 'info', method: req.method, path: req.path, status: res.statusCode, duration_ms: Date.now() - started, request_id: req.get('x-request-id') || null, at: new Date().toISOString() })); }); next(); });
 app.use('/api', dynamicRateLimit);
 
 // Phuc vu file tinh da upload (anh tin tuc, giai phap, slider...)
@@ -45,6 +49,12 @@ app.use('/uploads', express.static(path.resolve(process.cwd(), env.UPLOAD_DIR)))
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ success: true, data: { status: 'ok' }, message: '' });
+});
+app.get('/healthz', async (_req: Request, res: Response) => {
+  const checks = { database: false, storage: false };
+  try { await sequelize.authenticate(); checks.database = true; } catch { checks.database = false; }
+  try { await fs.promises.access(path.resolve(process.cwd(), env.UPLOAD_DIR), fs.constants.R_OK | fs.constants.W_OK); checks.storage = true; } catch { checks.storage = false; }
+  const ok = Object.values(checks).every(Boolean); res.status(ok ? 200 : 503).json({ success: ok, data: { status: ok ? 'ok' : 'degraded', checks }, message: '' });
 });
 
 app.use('/api/v1/auth', authRoutes);
@@ -77,6 +87,7 @@ async function bootstrap(): Promise<void> {
   await testDbConnection();
   scheduleBackupCron();
   scheduleEmailWorker();
+  cron.schedule('* * * * *', () => { void newsService.publishScheduled(); });
   app.listen(env.PORT, () => {
     // eslint-disable-next-line no-console
     console.log(

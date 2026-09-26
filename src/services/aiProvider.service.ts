@@ -1,6 +1,19 @@
+/* eslint-disable max-classes-per-file, no-await-in-loop, no-promise-executor-return, no-useless-constructor, no-empty-function */
 import Anthropic from '@anthropic-ai/sdk';
 
 export type AiProviderName = 'openai' | 'anthropic' | 'gemini';
+
+export function providerErrorStatus(error: unknown): number | undefined {
+  if (error && typeof error === 'object' && 'status' in error && typeof error.status === 'number')
+    return error.status;
+  return undefined;
+}
+
+class ProviderRequestError extends Error {
+  constructor(readonly status: number) {
+    super(`AI provider request failed with status ${status}`);
+  }
+}
 
 export interface AiChatParams {
   temperature: number;
@@ -26,6 +39,22 @@ function messagesWithHistory(
   return [...history, { role: 'user' as const, content: userMessage }];
 }
 
+async function retry<T>(task: () => Promise<T>, attempts = 2): Promise<T> {
+  let last: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await task();
+    } catch (error) {
+      const status = providerErrorStatus(error);
+      if (status && status < 500 && ![408, 429].includes(status)) throw error;
+      last = error;
+      if (attempt + 1 < attempts)
+        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+  }
+  throw last;
+}
+
 class AnthropicProvider implements AiProvider {
   constructor(
     private readonly apiKey: string,
@@ -39,23 +68,29 @@ class AnthropicProvider implements AiProvider {
     userMessage: string,
     params: AiChatParams,
   ) {
-    const client = new Anthropic({ apiKey: this.apiKey });
-    const response = await client.messages.create({
-      model: this.model,
-      max_tokens: params.maxTokens,
-      temperature: params.temperature,
-      system: `${systemPrompt}\n\nContext du lieu noi bo:\n${context}`,
-      messages: messagesWithHistory(history, userMessage),
-    });
+    const client = new Anthropic({ apiKey: this.apiKey, maxRetries: 0 });
+    const response = await retry(() =>
+      client.messages.create(
+        {
+          model: this.model,
+          max_tokens: params.maxTokens,
+          temperature: params.temperature,
+          system: `${systemPrompt}\n\nContext du lieu noi bo:\n${context}`,
+          messages: messagesWithHistory(history, userMessage),
+        },
+        { signal: AbortSignal.timeout(15_000) },
+      ),
+    );
     const block = response.content.find((item) => item.type === 'text');
     return block && 'text' in block ? block.text : '';
   }
 
   async testConnection(params: AiChatParams) {
-    await this.chat('Reply with exactly OK.', '', [], 'Connection test', {
+    const reply = await this.chat('Reply with exactly OK.', '', [], 'Connection test', {
       ...params,
       maxTokens: Math.min(params.maxTokens, 20),
     });
+    if (!reply.trim()) throw new Error('AI provider returned an empty reply');
   }
 }
 
@@ -67,13 +102,19 @@ class OpenAiCompatibleProvider implements AiProvider {
   ) {}
 
   private async request(body: Record<string, unknown>) {
-    const response = await fetch(`${this.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+    return retry(async () => {
+      const response = await fetch(`${this.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw new ProviderRequestError(response.status);
+      }
+      return response.json() as Promise<{ choices?: Array<{ message?: { content?: string } }> }>;
     });
-    if (!response.ok) throw new Error(`AI provider request failed with status ${response.status}`);
-    return response.json() as Promise<{ choices?: Array<{ message?: { content?: string } }> }>;
   }
 
   async chat(
@@ -97,10 +138,11 @@ class OpenAiCompatibleProvider implements AiProvider {
   }
 
   async testConnection(params: AiChatParams) {
-    await this.chat('Reply with exactly OK.', '', [], 'Connection test', {
+    const reply = await this.chat('Reply with exactly OK.', '', [], 'Connection test', {
       ...params,
       maxTokens: Math.min(params.maxTokens, 20),
     });
+    if (!reply.trim()) throw new Error('AI provider returned an empty reply');
   }
 }
 

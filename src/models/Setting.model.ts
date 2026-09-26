@@ -77,4 +77,13 @@ export const PUBLIC_SETTING_KEYS = [
   'contact_widget_enabled',
   'ga4_id',
   'fb_pixel_id',
+  'about_blocks',
+  'announcement_text',
+  'announcement_url',
+  'announcement_starts_at',
+  'announcement_ends_at',
+  'promo_popup_enabled',
+  'promo_popup_title',
+  'promo_popup_content',
+  'promo_popup_url',
 ];

@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
+import { sequelize } from '../config/database';
+import { chatbotService } from '../services/chatbot.service';
 import { AiChatLog } from '../models/AiChatLog.model';
 import { AiKnowledgeEntry } from '../models/AiKnowledgeEntry.model';
 import { aiSettingsService } from '../services/aiSettings.service';
@@ -75,5 +77,22 @@ export const aiController = {
     if (!item) throw AppError.notFound('Không tìm thấy hội thoại');
     await item.update(chatLogUpdateSchema.parse(req.body));
     sendSuccess(res, item, 'Đã cập nhật đánh giá hội thoại');
+  },
+  async stats(_req: Request, res: Response) {
+    const rows = await sequelize.query(
+      'SELECT COUNT(*) conversations,COALESCE(SUM(input_tokens),0) input_tokens,COALESCE(SUM(output_tokens),0) output_tokens,COALESCE(SUM(estimated_cost),0) estimated_cost,COALESCE(AVG(latency_ms),0) avg_latency_ms,SUM(flagged_for_review=1) flagged FROM ai_chat_logs WHERE created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY)',
+      { type: QueryTypes.SELECT },
+    );
+    sendSuccess(res, rows[0]);
+  },
+  async playground(req: Request, res: Response) {
+    sendSuccess(
+      res,
+      await chatbotService.answerQuestion(
+        `playground-${req.user!.id}`,
+        String(req.body.message || ''),
+        `admin:${req.user!.id}`,
+      ),
+    );
   },
 };

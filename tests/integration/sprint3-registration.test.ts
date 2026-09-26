@@ -37,6 +37,7 @@ suite('Sprint 3 integration on isolated database', () => {
     expect(Number(group!.total_amount)).toBe(fee + 90000);
     expect(Number(group!.items![0].fee_snapshot)).toBe(fee);
     expect(group!.code).toMatch(/^DK-\d{6}-\d{4}$/);
+    expect((await SimNumber.findByPk(sim.id))!.reserved_until).toBeNull();
     const teller = await User.findOne({ where: { role: 'giao_dich_vien' } });
     expect(teller).toBeTruthy();
     await expect(registrationService.getById(group!.id, { id: teller!.id, username: teller!.username, role: 'giao_dich_vien' })).rejects.toMatchObject({ statusCode: 403 });
@@ -50,6 +51,7 @@ suite('Sprint 3 integration on isolated database', () => {
     expect(first.buffer.subarray(0, 4).toString()).toBe('%PDF');
     expect(first.buffer.length).toBeGreaterThan(3000);
     await registrationService.updateStatus(group!.id, { status: 'dang_xu_ly', note: 'Admin mở lại' }, admin);
+    expect((await SimNumber.findByPk(sim.id))!.status).toBe('reserved');
     await registrationService.updateStatus(group!.id, { status: 'huy', note: 'Khách đổi ý' }, admin);
     expect((await SimNumber.findByPk(sim.id))!.status).toBe('available');
   });

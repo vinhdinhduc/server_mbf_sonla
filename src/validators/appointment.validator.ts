@@ -21,5 +21,13 @@ export const updateAppointmentSchema = z.object({
   status: z.enum(['moi', 'dang_xu_ly', 'hoan_thanh', 'huy']),
 });
 
+export const appointmentTokenSchema = z.string().regex(/^[a-f0-9]{48}$/);
+
+export const rescheduleAppointmentSchema = z.object({
+  token: appointmentTokenSchema,
+  date: z.string().regex(dateRegex, 'Ngày hẹn phải có dạng YYYY-MM-DD'),
+  time: z.string().regex(timeRegex, 'Giờ hẹn phải có dạng HH:mm'),
+});
+
 export type CreateAppointmentDto = z.infer<typeof createAppointmentSchema>;
 export type UpdateAppointmentDto = z.infer<typeof updateAppointmentSchema>;
