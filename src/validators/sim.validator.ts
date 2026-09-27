@@ -19,6 +19,10 @@ export const createSimSchema = z.object({
   sim_type: simTypeEnum,
   price: z.coerce.number().nonnegative().optional().nullable(),
   bundle_note: z.string().max(255).optional().nullable(),
+  committed_monthly_fee: z.preprocess(
+    (value) => (value === '' ? null : value),
+    z.coerce.number().int().min(0).max(999999999999).nullable().optional(),
+  ),
   commitment_months: z.coerce.number().int().min(0).max(36).optional().nullable(),
   status: simStatusEnum.default('available'),
 });

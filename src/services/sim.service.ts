@@ -1,3 +1,4 @@
+import { SIM_IMPORT_HEADERS, resolveSimImportHeader } from './sim-import-columns';
 import ExcelJS from 'exceljs';
 import { createHash } from 'crypto';
 import { InferCreationAttributes, Op } from 'sequelize';
@@ -55,18 +56,6 @@ const VALID_CATALOGS: SimCatalog[] = [
 const VALID_SIM_TYPES: SimType[] = ['tam_hoa', 'tu_quy', 'phat_loc', 'than_tai', 'thuong'];
 const VALID_STATUSES: SimStatus[] = ['available', 'reserved', 'sold', 'hidden'];
 const VALID_SUBSCRIPTION_TYPES: SubscriptionType[] = ['prepaid', 'postpaid'];
-
-// Cột mẫu: phone_number | subscription_type | catalog | sim_type | price (cũ, tùy chọn) | bundle_note | commitment_months | status
-const COLUMN_MAP = {
-  phone_number: 1,
-  subscription_type: 2,
-  catalog: 3,
-  sim_type: 4,
-  price: 5,
-  bundle_note: 6,
-  commitment_months: 7,
-  status: 8,
-};
 
 export const simService = {
   async listPublic(
@@ -188,7 +177,17 @@ export const simService = {
         'Ngày tạo',
       ];
       const columnIndexes = query.columns.map((column) =>
-        ['phone', 'subscription', 'catalog', 'pattern', 'fee', 'commitment', 'status', 'note', 'createdAt'].indexOf(column),
+        [
+          'phone',
+          'subscription',
+          'catalog',
+          'pattern',
+          'fee',
+          'commitment',
+          'status',
+          'note',
+          'createdAt',
+        ].indexOf(column),
       );
       const lines = values.map((row) =>
         [
@@ -201,13 +200,20 @@ export const simService = {
           row.status,
           row.note,
           row.createdAt.toISOString(),
-        ].filter((_, index) => columnIndexes.includes(index))
+        ]
+          .filter((_, index) => columnIndexes.includes(index))
           .map(escapeCsv)
           .join(','),
       );
       return {
         buffer: Buffer.from(
-          `\uFEFF${[header.filter((_, index) => columnIndexes.includes(index)).map(escapeCsv).join(','), ...lines].join('\r\n')}`,
+          `\uFEFF${[
+            header
+              .filter((_, index) => columnIndexes.includes(index))
+              .map(escapeCsv)
+              .join(','),
+            ...lines,
+          ].join('\r\n')}`,
           'utf8',
         ),
         contentType: 'text/csv; charset=utf-8',
@@ -228,7 +234,7 @@ export const simService = {
       { header: 'Trạng thái', key: 'status', width: 15 },
       { header: 'Ghi chú', key: 'note', width: 32 },
       { header: 'Ngày tạo', key: 'createdAt', width: 22 },
-    ].filter((column) => query.columns.includes(column.key as typeof query.columns[number]));
+    ].filter((column) => query.columns.includes(column.key as (typeof query.columns)[number]));
     sheet.getRow(1).font = { bold: true };
     values.forEach((row) => sheet.addRow(row));
     const output = await workbook.xlsx.writeBuffer();
@@ -249,7 +255,12 @@ export const simService = {
   async create(dto: CreateSimDto) {
     const existing = await SimNumber.findOne({ where: { phone_number: dto.phone_number } });
     if (existing) throw AppError.badRequest('Số điện thoại đã tồn tại trong kho');
-    return SimNumber.create({ ...dto, prefix: dto.phone_number.slice(0, 3) });
+    return SimNumber.create({
+      ...dto,
+      committed_monthly_fee:
+        dto.subscription_type === 'postpaid' ? (dto.committed_monthly_fee ?? null) : null,
+      prefix: dto.phone_number.slice(0, 3),
+    });
   },
 
   async update(id: number, dto: UpdateSimDto) {
@@ -262,6 +273,9 @@ export const simService = {
     }
     await sim.update({
       ...dto,
+      ...((dto.subscription_type ?? sim.subscription_type) === 'prepaid'
+        ? { committed_monthly_fee: null }
+        : {}),
       ...(dto.phone_number ? { prefix: dto.phone_number.slice(0, 3) } : {}),
     });
     return sim;
@@ -300,6 +314,16 @@ export const simService = {
       throw AppError.badRequest('File import chỉ được chứa tối đa 20.000 dòng dữ liệu');
     }
 
+    const columns = new Map<string, number>();
+    sheet.getRow(1).eachCell((cell, index) => {
+      const name = resolveSimImportHeader(cell.text);
+      if (columns.has(name)) throw AppError.badRequest(`Cột bị lặp: ${name}`);
+      columns.set(name, index);
+    });
+    for (const name of ['phone_number', 'subscription_type', 'catalog', 'sim_type']) {
+      if (!columns.has(name)) throw AppError.badRequest(`Thiếu cột ${name}`);
+    }
+
     const errors: ImportRowError[] = [];
     const validRows: Array<CreateSimDto & { prefix: string }> = [];
     const sample: ImportPreview['sample'] = [];
@@ -316,18 +340,31 @@ export const simService = {
       if (rowNumber === 1) return; // dong header
       total += 1;
 
-      const getCell = (col: number) => row.getCell(col).value;
-      const phoneNumber = String(getCell(COLUMN_MAP.phone_number) ?? '').trim();
+      const getCell = (name: string) =>
+        columns.has(name) ? row.getCell(columns.get(name)!).value : null;
+      const phoneNumber = String(getCell('phone_number') ?? '').trim();
       const subscriptionType = String(
-        getCell(COLUMN_MAP.subscription_type) ?? '',
+        getCell('subscription_type') ?? '',
       ).trim() as SubscriptionType;
-      const catalog = String(getCell(COLUMN_MAP.catalog) ?? '').trim() as SimCatalog;
-      const simType = String(getCell(COLUMN_MAP.sim_type) ?? '').trim() as SimType;
-      const priceRaw = getCell(COLUMN_MAP.price);
+      const catalog = String(getCell('catalog') ?? '').trim() as SimCatalog;
+      const simType = String(getCell('sim_type') ?? '').trim() as SimType;
+      const priceRaw = getCell('price') ?? getCell('price_deprecated');
       const price = Number(priceRaw);
-      const bundleNote = getCell(COLUMN_MAP.bundle_note);
-      const commitmentRaw = getCell(COLUMN_MAP.commitment_months);
-      const statusRaw = String(getCell(COLUMN_MAP.status) ?? 'available').trim() as SimStatus;
+      const bundleNote = getCell('bundle_note');
+      const commitmentRaw = getCell('commitment_months');
+      const monthlyRaw = getCell('committed_monthly_fee');
+      const monthlyFee = monthlyRaw === null || monthlyRaw === '' ? null : Number(monthlyRaw);
+      if (
+        monthlyFee !== null &&
+        (!Number.isInteger(monthlyFee) || monthlyFee < 0 || monthlyFee > 999999999999)
+      ) {
+        errors.push({
+          row: rowNumber,
+          message: 'Mức cước cam kết/tháng phải là số nguyên không âm, tối đa 999999999999 đồng',
+        });
+        return;
+      }
+      const statusRaw = String(getCell('status') ?? 'available').trim() as SimStatus;
 
       if (
         commitmentRaw !== null &&
@@ -404,7 +441,8 @@ export const simService = {
         subscription_type: subscriptionType,
         catalog,
         sim_type: simType,
-        price,
+        ...(columns.has('price') || columns.has('price_deprecated') ? { price } : {}),
+        committed_monthly_fee: subscriptionType === 'postpaid' ? monthlyFee : null,
         bundle_note: bundleNote ? String(bundleNote) : null,
         commitment_months: commitmentRaw ? Number(commitmentRaw) : null,
         status,
@@ -422,7 +460,10 @@ export const simService = {
                   'subscription_type',
                   'catalog',
                   'sim_type',
-                  'price',
+                  ...(columns.has('price') || columns.has('price_deprecated')
+                    ? ['price' as const]
+                    : []),
+                  'committed_monthly_fee',
                   'bundle_note',
                   'commitment_months',
                   'status',
@@ -456,14 +497,24 @@ export const simService = {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Mẫu kho sim', { views: [{ state: 'frozen', ySplit: 1 }] });
     sheet.columns = [
-      { header: 'phone_number', key: 'phone_number', width: 18, style: { numFmt: '@' } },
-      { header: 'subscription_type', key: 'subscription_type', width: 20 },
-      { header: 'catalog', key: 'catalog', width: 18 },
-      { header: 'sim_type', key: 'sim_type', width: 16 },
-      { header: 'price_deprecated', key: 'price', width: 18 },
-      { header: 'bundle_note', key: 'bundle_note', width: 32 },
-      { header: 'commitment_months', key: 'commitment_months', width: 22 },
-      { header: 'status', key: 'status', width: 16 },
+      {
+        header: SIM_IMPORT_HEADERS.phone_number,
+        key: 'phone_number',
+        width: 18,
+        style: { numFmt: '@' },
+      },
+      { header: SIM_IMPORT_HEADERS.subscription_type, key: 'subscription_type', width: 20 },
+      { header: SIM_IMPORT_HEADERS.catalog, key: 'catalog', width: 18 },
+      { header: SIM_IMPORT_HEADERS.sim_type, key: 'sim_type', width: 16 },
+      { header: SIM_IMPORT_HEADERS.bundle_note, key: 'bundle_note', width: 32 },
+      {
+        header: SIM_IMPORT_HEADERS.committed_monthly_fee,
+        key: 'committed_monthly_fee',
+        width: 28,
+        style: { numFmt: '#,##0' },
+      },
+      { header: SIM_IMPORT_HEADERS.commitment_months, key: 'commitment_months', width: 22 },
+      { header: SIM_IMPORT_HEADERS.status, key: 'status', width: 16 },
     ];
     sheet.getRow(1).font = { bold: true };
     sheet.addRow({
@@ -471,18 +522,35 @@ export const simService = {
       subscription_type: 'postpaid',
       catalog: 'so_dep',
       sim_type: 'thuong',
-      price: '',
+      committed_monthly_fee: 150000,
       bundle_note: 'Ghi chú tùy chọn',
-      commitment_months: 0,
+      commitment_months: 24,
       status: 'available',
     });
+    sheet.getCell('F1').note =
+      'Mức cước cam kết tối thiểu mỗi tháng, đơn vị đồng; chỉ áp dụng SIM trả sau. Để trống nếu SIM không yêu cầu cam kết gói cước.';
+    sheet.getCell('G1').note =
+      'Số tháng duy trì mức cước cam kết (0–36). Để trống nếu SIM không yêu cầu cam kết gói cước.';
     const instructions = workbook.addWorksheet('Hướng dẫn');
+    instructions.columns = [{ width: 28 }, { width: 110 }];
     instructions.addRows([
       ['Cột', 'Giá trị hợp lệ'],
-      ['subscription_type', 'prepaid | postpaid'],
-      ['catalog', VALID_CATALOGS.join(' | ')],
-      ['sim_type', VALID_SIM_TYPES.join(' | ')],
-      ['status', VALID_STATUSES.join(' | ')],
+      [
+        SIM_IMPORT_HEADERS.committed_monthly_fee,
+        'Mức cước tối thiểu/tháng (đồng), không phải phí hòa mạng. Để trống nếu không cam kết hoặc SIM trả trước.',
+      ],
+      [
+        SIM_IMPORT_HEADERS.commitment_months,
+        'Số tháng duy trì (0–36). Để trống nếu không cam kết.',
+      ],
+      [
+        'Chuẩn hóa file cũ',
+        '150.000 24 tháng → committed_monthly_fee = 150000 và commitment_months = 24. Nhập số thuần, không kèm đơn vị. Không tự chuyển price/price_deprecated thành cước cam kết.',
+      ],
+      [SIM_IMPORT_HEADERS.subscription_type, 'prepaid | postpaid'],
+      [SIM_IMPORT_HEADERS.catalog, VALID_CATALOGS.join(' | ')],
+      [SIM_IMPORT_HEADERS.sim_type, VALID_SIM_TYPES.join(' | ')],
+      [SIM_IMPORT_HEADERS.status, VALID_STATUSES.join(' | ')],
     ]);
     instructions.getRow(1).font = { bold: true };
     const output = await workbook.xlsx.writeBuffer();

@@ -38,6 +38,8 @@ export class SimNumber extends Model<
 
   declare bundle_note: CreationOptional<string | null>;
 
+  declare committed_monthly_fee: CreationOptional<number | null>;
+
   declare commitment_months: CreationOptional<number | null>;
 
   declare status: CreationOptional<SimStatus>;
@@ -72,6 +74,7 @@ export function initSimNumberModel(sequelize: Sequelize): typeof SimNumber {
       reserved_until: { type: DataTypes.DATE, allowNull: true },
       reserved_registration_id: { type: DataTypes.INTEGER, allowNull: true },
       bundle_note: { type: DataTypes.STRING(255), allowNull: true },
+      committed_monthly_fee: { type: DataTypes.DECIMAL(12, 0), allowNull: true },
       commitment_months: { type: DataTypes.INTEGER, allowNull: true },
       status: {
         type: DataTypes.ENUM('available', 'reserved', 'sold', 'hidden'),
