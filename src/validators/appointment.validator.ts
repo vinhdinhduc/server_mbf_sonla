@@ -1,9 +1,11 @@
 import { z } from 'zod';
+import { agreedTermsSchema } from '../utils/legalConsent';
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 export const createAppointmentSchema = z.object({
+  agreed_terms: agreedTermsSchema,
   customer_name: z.string().min(1).max(100),
   phone: z
     .string()

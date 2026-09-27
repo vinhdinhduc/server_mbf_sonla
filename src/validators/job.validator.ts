@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { agreedTermsSchema } from '../utils/legalConsent';
 
 const html = z.string().min(1).max(2_000_000);
 export const jobSchema = z
@@ -65,9 +66,7 @@ export const applyJobSchema = z
     phone: z.string().regex(/^(0|\+84)\d{9}$/),
     email: z.string().email().max(150),
     introduction: z.string().max(2000).optional().nullable(),
-    consent: z
-      .preprocess((v) => v === true || v === 'true', z.boolean())
-      .refine(Boolean, 'Cần đồng ý xử lý dữ liệu'),
+    agreed_terms: z.preprocess((v) => v === 'true' ? true : v, agreedTermsSchema),
     website: z.string().max(100).optional().default(''),
     recaptcha_token: z.string().min(1),
   })

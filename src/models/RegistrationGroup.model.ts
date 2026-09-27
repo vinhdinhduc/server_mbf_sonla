@@ -16,6 +16,8 @@ export class RegistrationGroup extends Model<
   InferCreationAttributes<RegistrationGroup>
 > {
   declare id: CreationOptional<number>;
+  declare agreed_terms_at: CreationOptional<Date | null>;
+  declare agreed_terms_version: CreationOptional<string | null>;
 
   declare customer_name: string;
 
@@ -58,6 +60,8 @@ export class RegistrationGroup extends Model<
 export function initRegistrationGroupModel(sequelize: Sequelize): typeof RegistrationGroup {
   RegistrationGroup.init(
     {
+      agreed_terms_at: { type: DataTypes.DATE, allowNull: true },
+      agreed_terms_version: { type: DataTypes.STRING(20), allowNull: true },
       id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
       customer_name: { type: DataTypes.STRING(100), allowNull: false },
       phone: { type: DataTypes.STRING(20), allowNull: false },

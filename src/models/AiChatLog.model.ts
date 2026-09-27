@@ -12,6 +12,8 @@ export class AiChatLog extends Model<
   InferCreationAttributes<AiChatLog>
 > {
   declare id: CreationOptional<number>;
+  declare agreed_terms_at: CreationOptional<Date | null>;
+  declare agreed_terms_version: CreationOptional<string | null>;
 
   declare session_id: string;
 
@@ -43,6 +45,8 @@ export class AiChatLog extends Model<
 export function initAiChatLogModel(sequelize: Sequelize): typeof AiChatLog {
   AiChatLog.init(
     {
+      agreed_terms_at: { type: DataTypes.DATE, allowNull: true },
+      agreed_terms_version: { type: DataTypes.STRING(20), allowNull: true },
       id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
       session_id: { type: DataTypes.STRING(100), allowNull: false },
       user_message: { type: DataTypes.TEXT, allowNull: false },

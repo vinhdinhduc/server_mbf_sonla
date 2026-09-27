@@ -1,3 +1,4 @@
+import { consentAudit } from '../utils/legalConsent';
 /* eslint-disable no-restricted-syntax */
 import { Op, QueryTypes } from 'sequelize';
 import { randomBytes } from 'crypto';
@@ -31,6 +32,7 @@ export const appointmentService = {
     });
 
     const appointment = await StoreAppointment.create({
+      ...consentAudit(),
       ...dto,
       email: dto.email || null,
       note: dto.note ?? null,

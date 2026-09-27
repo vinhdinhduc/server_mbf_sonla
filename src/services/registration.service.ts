@@ -1,3 +1,4 @@
+import { consentAudit } from '../utils/legalConsent';
 /* eslint-disable no-restricted-syntax, no-await-in-loop, no-plusplus, @typescript-eslint/no-unused-vars */
 import { Op, QueryTypes, UniqueConstraintError } from 'sequelize';
 import ExcelJS from 'exceljs';
@@ -176,6 +177,7 @@ export const registrationService = {
             total_amount: totalAmount,
             source_utm: dto.source_utm ?? null,
             consent_at: new Date(),
+            ...consentAudit(),
             idempotency_key: idempotencyKey ?? null,
           },
           { transaction: t },

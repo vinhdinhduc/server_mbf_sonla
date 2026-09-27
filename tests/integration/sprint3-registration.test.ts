@@ -27,7 +27,7 @@ suite('Sprint 3 integration on isolated database', () => {
   });
   it('TC-18/19/20/21/22: scoped order, snapshot total, SIM sync, receipt and transitions', async () => {
     const phone = `09${Date.now().toString().slice(-8)}`;
-    const dto = { customer_name: 'Khách thử nghiệm', phone, email: '', customer_type: 'individual' as const, consent: true as const, website: '', items: [{ type: 'sim' as const, reference_id: sim.id }, { type: 'goi_cuoc' as const, reference_id: pkg.id }], delivery_method: 'address' as const, sim_type: 'physical' as const, province: 'Sơn La' as const, ward: 'Tô Hiệu', delivery_address: '1 Đường thử', recaptcha_token: 'e2e' };
+    const dto = { customer_name: 'Khách thử nghiệm', phone, email: '', customer_type: 'individual' as const, agreed_terms: true as const, website: '', items: [{ type: 'sim' as const, reference_id: sim.id }, { type: 'goi_cuoc' as const, reference_id: pkg.id }], delivery_method: 'address' as const, sim_type: 'physical' as const, province: 'Sơn La' as const, ward: 'Tô Hiệu', delivery_address: '1 Đường thử', recaptcha_token: 'e2e' };
     const requestKey = `e2e-${Date.now()}-registration`;
     group = await registrationService.submitCart(dto, requestKey);
     expect((await registrationService.submitCart(dto, requestKey))?.id).toBe(group?.id);

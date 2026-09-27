@@ -1,4 +1,5 @@
 import { sequelize } from '../config/database';
+import { initStationModel } from './Station.model';
 import { initUserModel, User } from './User.model';
 import { initNewsModel, News } from './News.model';
 import { initPackageModel, Package } from './Package.model';
@@ -28,6 +29,7 @@ import { initUtilityModel, Utility } from './Utility.model';
 import { initDownloadModel, Download } from './Download.model';
 
 // 1. Khoi tao tat ca model tren cung 1 Sequelize instance
+initStationModel(sequelize);
 initUserModel(sequelize);
 initNewsModel(sequelize);
 initPackageModel(sequelize);

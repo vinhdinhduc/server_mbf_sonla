@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import stationRoutes from './station.routes';
 import { asyncHandler } from '../utils/asyncHandler';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { checkRole } from '../middlewares/checkRole.middleware';
@@ -44,6 +45,7 @@ const AI_ROLES = ['admin'] as const;
 // Tat ca route /api/admin/* deu di qua authMiddleware (verify JWT).
 // checkRole duoc gan RIENG cho tung route theo dung ma tran phan quyen (muc 4).
 router.use(authMiddleware);
+router.use('/stations', stationRoutes);
 
 router.get('/dashboard', checkRole([...DASHBOARD_ROLES]), asyncHandler(dashboardController.get));
 router.get('/health', checkRole([...DASHBOARD_ROLES]), asyncHandler(dashboardController.health));

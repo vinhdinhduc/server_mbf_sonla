@@ -1,3 +1,4 @@
+import { consentAudit } from '../utils/legalConsent';
 import { Contact } from '../models/Contact.model';
 import { AppError } from '../utils/AppError';
 import { CreateContactDto, UpdateContactDto } from '../validators/contact.validator';
@@ -14,6 +15,7 @@ export const contactService = {
       topic: dto.topic,
       store_id: dto.store_id ?? null,
       consent_at: new Date(),
+            ...consentAudit(),
     });
     await contact.update({
       code: `LH-${new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: '2-digit', month: '2-digit', day: '2-digit' }).format(new Date()).replace(/-/g, '')}-${String(contact.id).padStart(5, '0')}`,

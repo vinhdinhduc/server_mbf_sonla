@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { agreedTermsSchema } from '../utils/legalConsent';
 
 export const contactStatusEnum = z.enum(['moi', 'dang_xu_ly', 'da_phan_hoi']);
 export const createContactSchema = z
@@ -12,7 +13,7 @@ export const createContactSchema = z
     topic: z.enum(['package', 'sim', 'solution', 'support', 'other']),
     store_id: z.coerce.number().int().positive().optional().nullable(),
     message: z.string().trim().min(1).max(1000),
-    consent: z.literal(true, { errorMap: () => ({ message: 'Cần đồng ý xử lý dữ liệu' }) }),
+    agreed_terms: agreedTermsSchema,
     website: z.string().max(100).optional().default(''),
     recaptcha_token: z.string().min(1, 'Thiếu recaptcha_token'),
   })

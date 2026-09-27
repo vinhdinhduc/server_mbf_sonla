@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { agreedTermsSchema } from '../utils/legalConsent';
 
 export const registrationItemTypeEnum = z.enum(['sim', 'goi_cuoc', 'giai_phap', 'solution_plan']);
 export const registrationStatusEnum = z.enum(['moi', 'dang_xu_ly', 'hoan_thanh', 'huy']);
@@ -17,7 +18,7 @@ export const submitCartSchema = z.object({
     .regex(/^[0-9+]+$/, 'Số điện thoại không hợp lệ'),
   email: z.union([z.string().email().max(150), z.literal('')]).optional().default(''),
   customer_type: z.enum(['individual', 'business']).default('individual'),
-  consent: z.literal(true, { errorMap: () => ({ message: 'Cần đồng ý điều khoản trước khi gửi đăng ký' }) }),
+  agreed_terms: agreedTermsSchema,
   website: z.string().max(100).optional().default(''),
   source_utm: z.record(z.string().max(100)).optional(),
   note: z.string().optional().nullable(),

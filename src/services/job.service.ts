@@ -1,3 +1,4 @@
+import { consentAudit } from '../utils/legalConsent';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import fs from 'fs';
 import path from 'path';
@@ -92,6 +93,7 @@ export const jobService = {
       cv_original_name: path.basename(file.originalname),
       cv_mime: file.mimetype,
       consent_at: new Date(),
+            ...consentAudit(),
     });
     return { id: item.id, code: item.code };
   },

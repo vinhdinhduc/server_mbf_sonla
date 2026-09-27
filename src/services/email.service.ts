@@ -119,7 +119,7 @@ export function renderEmail(template: Template, data: Record<string, unknown>) {
   const body = sanitizeContent(template.html.replace(/{{\s*([a-z_]+)\s*}}/g, replace));
   const site = env.PUBLIC_SITE_URL || ALLOWED_ORIGINS_LIST[0] || '';
   const logo = site
-    ? `<img src="${escapeHtml(site.replace(/\/$/, ''))}/logo.png" alt="MobiFone Sơn La" width="160" />`
+    ? `<div style="background:#0066b3;padding:16px"><img src="${escapeHtml(site.replace(/\/$/, ''))}/logo.png" alt="MobiFone Sơn La" width="160" /></div>`
     : '';
   const html = `<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto">${logo}<hr/>${body}<hr/><p>MobiFone Sơn La · Hotline 18001090</p></div>`;
   return {
@@ -168,6 +168,14 @@ async function transport() {
 }
 
 export const emailService = {
+  async sendPasswordReset(recipient: string, code: string) {
+    const { transporter, setting } = await transport();
+    const rendered = renderEmail({ key: 'password_reset', name: 'Đặt lại mật khẩu', enabled: true,
+      subject: 'Mã xác thực đặt lại mật khẩu MobiFone',
+      html: `<h1>Đặt lại mật khẩu</h1><p>Mã OTP của bạn:</p><p style="font-size:32px;color:#0066b3;letter-spacing:6px"><strong>${escapeHtml(code)}</strong></p><p>Mã có hiệu lực 5 phút. Không chia sẻ mã này với bất kỳ ai. Nếu bạn không yêu cầu, hãy bỏ qua email này.</p>`,
+    }, {});
+    await transporter.sendMail({ from: { name: cleanHeader(setting.from_name), address: setting.from_email }, to: recipient, ...rendered });
+  },
   async config() {
     const setting = await settings();
     return {

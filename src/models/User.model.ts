@@ -16,6 +16,7 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare username: string;
 
   declare password_hash: string;
+  declare session_version: CreationOptional<number>;
 
   declare full_name: string;
 
@@ -51,6 +52,7 @@ export function initUserModel(sequelize: Sequelize): typeof User {
       id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
       username: { type: DataTypes.STRING(50), unique: true, allowNull: false },
       password_hash: { type: DataTypes.STRING(255), allowNull: false },
+      session_version: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
       full_name: { type: DataTypes.STRING(100), allowNull: false },
       email: { type: DataTypes.STRING(100), allowNull: false },
       phone: { type: DataTypes.STRING(20), allowNull: false },

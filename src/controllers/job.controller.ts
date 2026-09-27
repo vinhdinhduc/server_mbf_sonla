@@ -8,6 +8,7 @@ import {
 } from '../validators/job.validator';
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
 import { verifyRecaptcha } from '../utils/verifyRecaptcha';
+import { promises as fs } from 'fs';
 
 export const jobController = {
   async listPublic(req: Request, res: Response) {
@@ -25,8 +26,16 @@ export const jobController = {
     sendSuccess(res, await jobService.publicDetail(req.params.slug));
   },
   async apply(req: Request, res: Response) {
-    const dto = applyJobSchema.parse(req.body);
-    await verifyRecaptcha(dto.recaptcha_token);
+    let dto;
+    try {
+      dto = applyJobSchema.parse(req.body);
+      await verifyRecaptcha(dto.recaptcha_token);
+    } catch (error) {
+      // Multer has already written the CV before parsing multipart fields.
+      // A rejected consent/validation request must not leave personal data behind.
+      if (req.file) await fs.unlink(req.file.path).catch(() => undefined);
+      throw error;
+    }
     const result = await jobService.apply(dto, req.file!);
     sendCreated(res, result, 'Đã nhận hồ sơ ứng tuyển');
   },

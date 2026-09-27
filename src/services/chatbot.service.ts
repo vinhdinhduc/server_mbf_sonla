@@ -1,3 +1,4 @@
+import { consentAudit } from '../utils/legalConsent';
 /* eslint-disable no-control-regex */
 import { Op } from 'sequelize';
 import { AiChatLog } from '../models/AiChatLog.model';
@@ -225,6 +226,7 @@ export const chatbotService = {
       const reply =
         'Tôi không thể cung cấp chỉ dẫn hệ thống, khóa API, mật khẩu hoặc dữ liệu bí mật. Tôi có thể hỗ trợ thông tin dịch vụ MobiFone Sơn La.';
       await AiChatLog.create({
+        ...consentAudit(),
         session_id: sessionId,
         user_message: message || '[nội dung bị chặn]',
         ai_response: reply,
@@ -291,6 +293,7 @@ export const chatbotService = {
       );
       const outputTokens = Math.ceil(safeReply.length / 4);
       await AiChatLog.create({
+        ...consentAudit(),
         session_id: sessionId,
         user_message: message,
         ai_response: safeReply,
@@ -310,6 +313,7 @@ export const chatbotService = {
       );
       const fallback = (await settingService.getRawValue('ai_fallback_message')) || FALLBACK;
       await AiChatLog.create({
+        ...consentAudit(),
         session_id: sessionId,
         user_message: message,
         ai_response: fallback,

@@ -12,6 +12,8 @@ export class JobApplication extends Model<
   InferCreationAttributes<JobApplication>
 > {
   declare id: CreationOptional<number>;
+  declare agreed_terms_at: CreationOptional<Date | null>;
+  declare agreed_terms_version: CreationOptional<string | null>;
 
   declare code: string;
 
@@ -44,6 +46,8 @@ export class JobApplication extends Model<
 export function initJobApplicationModel(sequelize: Sequelize) {
   JobApplication.init(
     {
+      agreed_terms_at: { type: DataTypes.DATE, allowNull: true },
+      agreed_terms_version: { type: DataTypes.STRING(20), allowNull: true },
       id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
       code: { type: DataTypes.STRING(24), allowNull: false, unique: true },
       job_id: { type: DataTypes.INTEGER, allowNull: true },

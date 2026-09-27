@@ -1,3 +1,4 @@
+import { consentAudit } from '../utils/legalConsent';
 import { randomBytes } from 'crypto';
 import ExcelJS from 'exceljs';
 import { NewsletterSubscriber } from '../models/NewsletterSubscriber.model';
@@ -10,8 +11,10 @@ export const newsletterService = {
   async subscribe(email: string, ip: string) {
     const normalized = email.toLowerCase();
     let item = await NewsletterSubscriber.findOne({ where: { email: normalized } });
-    if (item?.status === 'subscribed')
+    if (item?.status === 'subscribed') {
+      if (!item.agreed_terms_at || !item.agreed_terms_version) await item.update(consentAudit());
       return { id: item.id, email: item.email, status: item.status };
+    }
     const confirm = randomBytes(24).toString('hex');
     const unsubscribe = item?.unsubscribe_token || randomBytes(24).toString('hex');
     if (item)
@@ -20,6 +23,7 @@ export const newsletterService = {
         confirm_token: confirm,
         unsubscribe_token: unsubscribe,
         consent_ip: ip,
+        ...consentAudit(),
       });
     else
       item = await NewsletterSubscriber.create({
@@ -28,6 +32,7 @@ export const newsletterService = {
         confirm_token: confirm,
         unsubscribe_token: unsubscribe,
         consent_ip: ip,
+        ...consentAudit(),
       });
     await emailService.unsuppress(normalized);
     await emailService.enqueue(

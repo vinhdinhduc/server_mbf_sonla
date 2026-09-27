@@ -8,6 +8,7 @@ import './models'; // Khoi tao model + association (import side-effect)
 import authRoutes from './routes/auth.routes';
 import publicRoutes from './routes/public.routes';
 import adminRoutes from './routes/admin.routes';
+import stationRoutes from './routes/station.routes';
 import { errorHandlerMiddleware } from './middlewares/errorHandler.middleware';
 import { scheduleBackupCron } from './scripts/backupCron';
 import { chatbotController } from './controllers/chatbot.controller';
@@ -21,6 +22,7 @@ import { scheduleEmailWorker } from './services/email.service';
 import cron from 'node-cron';
 import { newsService } from './services/news.service';
 import fs from 'fs';
+import { passwordResetService } from './services/passwordReset.service';
 
 const app = express();
 
@@ -60,6 +62,8 @@ app.get('/healthz', async (_req: Request, res: Response) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/public', publicRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/stations', stationRoutes);
+app.use('/api/stations', stationRoutes);
 
 // Alias tương thích trong giai đoạn chuyển frontend sang API versioned.
 app.use('/api/auth', authRoutes);
@@ -87,6 +91,7 @@ async function bootstrap(): Promise<void> {
   await testDbConnection();
   scheduleBackupCron();
   scheduleEmailWorker();
+  cron.schedule('15 * * * *', () => { void passwordResetService.cleanup().catch(() => console.error('Password reset cleanup failed')); });
   cron.schedule('* * * * *', () => { void newsService.publishScheduled(); });
   app.listen(env.PORT, () => {
     // eslint-disable-next-line no-console
