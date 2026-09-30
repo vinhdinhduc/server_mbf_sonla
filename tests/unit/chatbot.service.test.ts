@@ -16,6 +16,7 @@ import { aiSettingsService } from '../../src/services/aiSettings.service';
 import { settingService } from '../../src/services/setting.service';
 
 jest.mock('../../src/services/aiSettings.service', () => ({
+  ...jest.requireActual('../../src/services/aiSettings.service'),
   aiSettingsService: { getPublicConfig: jest.fn(), resolveProvider: jest.fn() },
 }));
 jest.mock('../../src/services/setting.service', () => ({
@@ -45,7 +46,12 @@ describe('Chatbot grounding and conversation', () => {
       config: { ai_provider: 'anthropic', ai_model: 'test' },
     });
     jest.mocked(settingService.getRawValue).mockResolvedValue(null);
-    chat.mockReset().mockResolvedValue('Câu trả lời từ dữ liệu nội bộ');
+    chat
+      .mockReset()
+      .mockResolvedValue({
+        text: 'Câu trả lời từ dữ liệu nội bộ',
+        usage: { inputTokens: 123, outputTokens: 45 },
+      });
   });
   afterEach(() => jest.restoreAllMocks());
 
@@ -92,7 +98,12 @@ describe('Chatbot grounding and conversation', () => {
     );
     expect(chat.mock.calls[0][2][0]).toEqual({ role: 'user', content: 'Câu 1' });
     expect(AiChatLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'anthropic', model: 'test' }),
+      expect.objectContaining({
+        provider: 'anthropic',
+        model: 'test',
+        input_tokens: 123,
+        output_tokens: 45,
+      }),
     );
   });
 

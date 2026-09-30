@@ -23,6 +23,7 @@ import cron from 'node-cron';
 import { newsService } from './services/news.service';
 import fs from 'fs';
 import { passwordResetService } from './services/passwordReset.service';
+import { aiUsageService } from './services/aiUsage.service';
 
 const app = express();
 
@@ -91,6 +92,9 @@ async function bootstrap(): Promise<void> {
   await testDbConnection();
   scheduleBackupCron();
   scheduleEmailWorker();
+  cron.schedule('35 * * * *', () => {
+    void aiUsageService.cleanup().catch(() => console.error('AI usage cleanup failed'));
+  });
   cron.schedule('15 * * * *', () => { void passwordResetService.cleanup().catch(() => console.error('Password reset cleanup failed')); });
   cron.schedule('* * * * *', () => { void newsService.publishScheduled(); });
   app.listen(env.PORT, () => {

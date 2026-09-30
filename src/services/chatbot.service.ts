@@ -1,6 +1,6 @@
-import { consentAudit } from '../utils/legalConsent';
 /* eslint-disable no-control-regex */
 import { Op } from 'sequelize';
+import { consentAudit } from '../utils/legalConsent';
 import { AiChatLog } from '../models/AiChatLog.model';
 import { AiKnowledgeEntry } from '../models/AiKnowledgeEntry.model';
 import { Package } from '../models/Package.model';
@@ -10,7 +10,9 @@ import { Solution } from '../models/Solution.model';
 import { Store } from '../models/Store.model';
 import { AppError } from '../utils/AppError';
 import { settingService } from './setting.service';
-import { aiSettingsService } from './aiSettings.service';
+import { aiSettingsService, readAiPrices } from './aiSettings.service';
+import { estimateCost } from './aiUsage.service';
+import { providerErrorCode } from './aiProvider.service';
 import { todayDateStringVietnam } from '../utils/vietnamTime';
 
 const FALLBACK =
@@ -253,8 +255,8 @@ export const chatbotService = {
         sources: [],
       };
     }
+    const started = Date.now();
     try {
-      const started = Date.now();
       const [historyRows, resolved] = await Promise.all([
         AiChatLog.findAll({
           where: { session_id: sessionId, ip_address: ipAddress, flagged_for_review: false },
@@ -276,41 +278,35 @@ export const chatbotService = {
         { role: 'user' as const, content: row.user_message },
         { role: 'assistant' as const, content: row.ai_response },
       ]);
-      const reply = await resolved.provider.chat(
+      const result = await resolved.provider.chat(
         resolved.prompt,
         context,
         history,
         message,
         resolved.params,
       );
-      if (!reply.trim()) throw new Error('AI provider returned an empty reply');
-      const safeReply = reply.trim();
-      const inputTokens = Math.ceil(
-        (message.length +
-          context.length +
-          history.reduce((sum, item) => sum + item.content.length, 0)) /
-          4,
+      if (!result.text.trim()) throw new Error('AI provider returned an empty reply');
+      const safeReply = result.text.trim();
+      const price = readAiPrices(resolved.config).find(
+        (item) => item.provider === config.provider && item.model === config.model,
       );
-      const outputTokens = Math.ceil(safeReply.length / 4);
       await AiChatLog.create({
         ...consentAudit(),
         session_id: sessionId,
         user_message: message,
         ai_response: safeReply,
         ip_address: ipAddress,
-        input_tokens: inputTokens,
-        output_tokens: outputTokens,
-        estimated_cost: Number((inputTokens * 0.000001 + outputTokens * 0.000005).toFixed(6)),
+        // Legacy columns stay compatible; ai_provider_calls stores unknown usage as NULL.
+        input_tokens: result.usage.inputTokens ?? 0,
+        output_tokens: result.usage.outputTokens ?? 0,
+        estimated_cost: estimateCost(result.usage, price) ?? 0,
         provider: resolved.config.ai_provider || 'anthropic',
-        model: resolved.config.ai_model || null,
+        model: config.model,
         latency_ms: Date.now() - started,
       });
       return { reply: safeReply, status: 'answered', sources: retrieved.sources };
     } catch (error) {
-      console.error(
-        'AI provider request failed',
-        error instanceof Error ? error.message : 'unknown error',
-      );
+      console.error('AI provider request failed', providerErrorCode(error));
       const fallback = (await settingService.getRawValue('ai_fallback_message')) || FALLBACK;
       await AiChatLog.create({
         ...consentAudit(),
@@ -318,6 +314,10 @@ export const chatbotService = {
         user_message: message,
         ai_response: fallback,
         ip_address: ipAddress,
+        provider: config.provider,
+        model: config.model,
+        latency_ms: Date.now() - started,
+        flagged_for_review: true,
       });
       return { reply: fallback, status: 'unavailable', sources: [] };
     }

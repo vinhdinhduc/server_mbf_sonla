@@ -19,6 +19,20 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(16, 'JWT_SECRET phải có ít nhất 16 ký tự'),
   JWT_EXPIRES_IN: z.string().default('7d'),
   APP_SECRET_KEY: z.string().min(32).default('change-this-app-secret-key-before-production-32'),
+  APP_SECRET_KEY_PREVIOUS: z
+    .string()
+    .default('[]')
+    .transform((value, context) => {
+      try {
+        return z.array(z.string().min(32)).max(5).parse(JSON.parse(value));
+      } catch {
+        context.addIssue({
+          code: 'custom',
+          message: 'Phải là mảng JSON tối đa 5 secret, mỗi secret ít nhất 32 ký tự',
+        });
+        return z.NEVER;
+      }
+    }),
 
   ALLOWED_ORIGINS: z.string().min(1),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),

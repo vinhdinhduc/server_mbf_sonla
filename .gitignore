@@ -27,6 +27,7 @@ build/
 
 # Backups (bạn có thư mục backups/)
 server/backups/
+backups/
 *.sql
 *.dump
 *.bak

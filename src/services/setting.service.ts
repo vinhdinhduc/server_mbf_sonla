@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { Setting, PUBLIC_SETTING_KEYS } from '../models/Setting.model';
 import { AppError } from '../utils/AppError';
 import { FORBIDDEN_SETTING_KEYS, UpdateSettingsDto } from '../validators/setting.validator';
@@ -16,6 +17,7 @@ export const settingService = {
   /** GET /api/admin/settings - chi admin */
   async listAdmin() {
     return Setting.findAll({
+      where: { key: { [Op.notLike]: '%encrypted%' } },
       order: [
         ['group', 'ASC'],
         ['key', 'ASC'],
@@ -35,7 +37,9 @@ export const settingService = {
    * TUYET DOI khong duoc phep ghi vao bang settings (muc 5.17 / muc 17).
    */
   async updateByGroup(dto: UpdateSettingsDto, updatedBy: number) {
-    const forbidden = dto.items.find((item) => FORBIDDEN_SETTING_KEYS.includes(item.key));
+    const forbidden = dto.items.find(
+      (item) => FORBIDDEN_SETTING_KEYS.includes(item.key) || /encrypted/i.test(item.key),
+    );
     if (forbidden) {
       throw AppError.badRequest(
         `Khóa "${forbidden.key}" là bí mật, không được phép lưu vào bảng settings - chỉ được cấu hình qua .env`,
@@ -53,6 +57,6 @@ export const settingService = {
       ),
     );
 
-    return Setting.findAll({ where: { group: dto.group } });
+    return Setting.findAll({ where: { group: dto.group, key: { [Op.notLike]: '%encrypted%' } } });
   },
 };
