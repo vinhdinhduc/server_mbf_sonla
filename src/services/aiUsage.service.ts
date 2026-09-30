@@ -70,7 +70,12 @@ export const aiUsageService = {
        FROM ai_provider_calls WHERE created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY)`,
       { type: QueryTypes.SELECT, logging: false },
     );
-    return rows[0] ?? {};
+    const daily = await sequelize.query(`SELECT DATE(created_at) day,COUNT(*) calls,COALESCE(SUM(estimated_cost),0) cost,
+      SUM(error_code IS NOT NULL) errors FROM ai_provider_calls WHERE created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) GROUP BY DATE(created_at) ORDER BY day`, { type: QueryTypes.SELECT, logging: false });
+    const models = await sequelize.query(`SELECT provider,model,COUNT(*) calls,COALESCE(SUM(estimated_cost),0) cost,
+      SUM(error_code IS NOT NULL) errors,SUM(estimated_cost IS NULL) cost_missing FROM ai_provider_calls
+      WHERE created_at>=DATE_SUB(NOW(),INTERVAL 30 DAY) GROUP BY provider,model ORDER BY calls DESC`, { type: QueryTypes.SELECT, logging: false });
+    return { ...(rows[0] || {}), daily, models };
   },
 
   async cleanup(): Promise<void> {

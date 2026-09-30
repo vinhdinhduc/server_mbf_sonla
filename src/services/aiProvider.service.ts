@@ -2,8 +2,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { randomUUID } from 'crypto';
 import { AiPrice, AiUsage, aiUsageService, tokenCount } from './aiUsage.service';
+import { getProvider, resolveEndpoint, ProviderDefinition } from './llm/registry/providers';
+import { executeAdapter, ProviderOptions, ToolCall, ToolDefinition } from './llm/adapters';
+import { validateBaseUrl } from './llm/safeHttp';
 
-export type AiProviderName = 'openai' | 'anthropic' | 'gemini';
+export type AiProviderName = string;
 
 export function providerErrorStatus(error: unknown): number | undefined {
   if (error && typeof error === 'object' && 'status' in error && typeof error.status === 'number')
@@ -44,11 +47,16 @@ export interface AiChatParams {
   temperature: number;
   maxTokens: number;
   topP: number;
+  tools?: ToolDefinition[];
+  onText?: (text: string) => void;
 }
 
 export interface AiChatResult {
   text: string;
   usage: AiUsage;
+  tool_calls?: ToolCall[];
+  model?: string;
+  provider?: string;
 }
 
 export interface AiProvider {
@@ -59,7 +67,7 @@ export interface AiProvider {
     userMessage: string,
     params: AiChatParams,
   ): Promise<AiChatResult>;
-  testConnection(params: AiChatParams): Promise<void>;
+  testConnection(params: AiChatParams): Promise<AiChatResult | void>;
 }
 
 type History = Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -96,7 +104,7 @@ abstract class RecordedProvider implements AiProvider {
       try {
         signal.throwIfAborted();
         result = await this.request(system, history, params, signal);
-        if (!result.text.trim()) throw new EmptyResponseError(result);
+        if (!result.text.trim() && !result.tool_calls?.length) throw new EmptyResponseError(result);
       } catch (error) {
         failure = signal.aborted ? signal.reason : error;
       }
@@ -118,10 +126,11 @@ abstract class RecordedProvider implements AiProvider {
         // Do not turn a paid, successful answer into another paid request on DB failure.
         console.error('AI usage write failed');
       }
-      if (!failure) return result!;
+      if (!failure) return { ...result!, model: result!.model || this.model, provider: this.name };
       const status = providerErrorStatus(failure);
       if (
         attempt === 2 ||
+        Boolean(params.onText) ||
         signal.aborted ||
         errorCode === 'empty_response' ||
         (status && status < 500 && ![408, 429].includes(status))
@@ -148,7 +157,7 @@ abstract class RecordedProvider implements AiProvider {
   }
 
   async testConnection(params: AiChatParams) {
-    await this.run(
+    return this.run(
       'Reply with exactly OK.',
       [{ role: 'user', content: 'Connection test' }],
       params,
@@ -164,6 +173,10 @@ class AnthropicProvider extends RecordedProvider {
     params: AiChatParams,
     signal: AbortSignal,
   ): Promise<AiChatResult> {
+    if (params.onText || params.tools?.length) {
+      return executeAdapter(getProvider('anthropic'), 'https://api.anthropic.com/v1', this.apiKey,
+        this.model, system, history, params, signal);
+    }
     const client = new Anthropic({ apiKey: this.apiKey, maxRetries: 0 });
     const response = await client.messages.create(
       {
@@ -176,6 +189,7 @@ class AnthropicProvider extends RecordedProvider {
       { signal },
     );
     return {
+      model: response.model,
       text: response.content
         .filter((item) => item.type === 'text')
         .map((item) => ('text' in item ? item.text : ''))
@@ -195,6 +209,8 @@ class OpenAiCompatibleProvider extends RecordedProvider {
     name: AiProviderName,
     private readonly baseUrl: string,
     price?: AiPrice,
+    private readonly definition: ProviderDefinition = getProvider(name),
+    private readonly custom = false,
   ) {
     super(apiKey, model, name, price);
   }
@@ -205,34 +221,7 @@ class OpenAiCompatibleProvider extends RecordedProvider {
     params: AiChatParams,
     signal: AbortSignal,
   ): Promise<AiChatResult> {
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: this.model,
-        temperature: params.temperature,
-        max_tokens: params.maxTokens,
-        top_p: params.topP,
-        messages: [{ role: 'system', content: system }, ...history],
-      }),
-      signal,
-      redirect: 'error',
-    });
-    if (!response.ok) {
-      await response.body?.cancel();
-      throw new ProviderRequestError(response.status);
-    }
-    const result = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
-    };
-    return {
-      text: result.choices?.[0]?.message?.content ?? '',
-      usage: {
-        inputTokens: tokenCount(result.usage?.prompt_tokens),
-        outputTokens: tokenCount(result.usage?.completion_tokens),
-      },
-    };
+    return executeAdapter(this.definition, this.baseUrl, this.apiKey, this.model, system, history, params, signal, this.custom);
   }
 }
 
@@ -241,23 +230,12 @@ export function createAiProvider(
   model: string,
   apiKey: string,
   price?: AiPrice,
+  options: ProviderOptions = {},
 ): AiProvider {
   if (provider === 'anthropic') return new AnthropicProvider(apiKey, model, provider, price);
-  if (provider === 'openai')
-    return new OpenAiCompatibleProvider(
-      apiKey,
-      model,
-      provider,
-      'https://api.openai.com/v1',
-      price,
-    );
-  if (provider === 'gemini')
-    return new OpenAiCompatibleProvider(
-      apiKey,
-      model,
-      provider,
-      'https://generativelanguage.googleapis.com/v1beta/openai',
-      price,
-    );
-  throw new Error('Unsupported AI provider');
+  const resolved = resolveEndpoint(provider, options.endpoint_id, options.base_url);
+  if (provider === 'custom') validateBaseUrl(resolved.baseUrl);
+  const routedModel = provider === 'huggingface' && options.host && options.host !== 'auto'
+    ? `${model.split(':')[0]}:${options.host}` : model;
+  return new OpenAiCompatibleProvider(apiKey, routedModel, provider, resolved.baseUrl, price, resolved.definition, provider === 'custom');
 }

@@ -153,6 +153,8 @@ router.post(
 );
 
 router.get('/ai-settings', checkRole([...AI_ROLES]), asyncHandler(aiController.getSettings));
+router.get('/ai/providers', checkRole([...AI_ROLES]), asyncHandler(aiController.providers));
+router.post('/ai/providers/:id/models', checkRole([...AI_ROLES]), asyncHandler(aiController.models));
 router.put('/ai-settings', checkRole([...AI_ROLES]), asyncHandler(aiController.updateSettings));
 router.post(
   '/ai-settings/test-connection',

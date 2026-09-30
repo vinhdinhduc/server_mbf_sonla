@@ -288,7 +288,7 @@ export const chatbotService = {
       if (!result.text.trim()) throw new Error('AI provider returned an empty reply');
       const safeReply = result.text.trim();
       const price = readAiPrices(resolved.config).find(
-        (item) => item.provider === config.provider && item.model === config.model,
+        (item) => item.provider === (result.provider || config.provider) && item.model === (result.model || config.model),
       );
       await AiChatLog.create({
         ...consentAudit(),
@@ -300,8 +300,8 @@ export const chatbotService = {
         input_tokens: result.usage.inputTokens ?? 0,
         output_tokens: result.usage.outputTokens ?? 0,
         estimated_cost: estimateCost(result.usage, price) ?? 0,
-        provider: resolved.config.ai_provider || 'anthropic',
-        model: config.model,
+        provider: result.provider || resolved.config.ai_provider || 'anthropic',
+        model: result.model || config.model,
         latency_ms: Date.now() - started,
       });
       return { reply: safeReply, status: 'answered', sources: retrieved.sources };

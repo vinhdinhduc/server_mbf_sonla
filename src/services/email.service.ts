@@ -151,9 +151,12 @@ async function settings(): Promise<SmtpSettings> {
     }
   );
 }
-async function transport() {
-  const setting = await settings();
+async function transport(config?: SmtpSettings) {
+  const setting = config || await settings();
   const password = setting.password_enc ? decryptSmtpPassword(setting.password_enc) : env.SMTP_PASS;
+  if (!setting.host || !setting.username || !password || !emailRegex.test(setting.from_email)) {
+    throw AppError.badRequest('Chưa cấu hình SMTP đầy đủ. Vui lòng nhập host, tài khoản, mật khẩu và email gửi tại mục Email & thông báo.');
+  }
   const transporter = nodemailer.createTransport({
     host: setting.host,
     port: Number(setting.port),
@@ -167,8 +170,29 @@ async function transport() {
   return { transporter, setting };
 }
 
+async function smtpOperation<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    const code = (error as { code?: string })?.code;
+    const messages: Record<string, string> = {
+      EAUTH: 'Xác thực SMTP thất bại. Kiểm tra tài khoản và mật khẩu SMTP.',
+      ECONNECTION: 'Không kết nối được máy chủ SMTP. Kiểm tra host và port.',
+      ESOCKET: 'Kết nối SMTP thất bại. Kiểm tra host, port và cấu hình TLS.',
+      ETIMEDOUT: 'Máy chủ SMTP không phản hồi trong thời gian cho phép.',
+      EDNS: 'Không tìm thấy máy chủ SMTP. Kiểm tra host.',
+      ETLS: 'Không thiết lập được kết nối TLS với máy chủ SMTP.',
+      EENVELOPE: 'Máy chủ SMTP từ chối địa chỉ gửi hoặc nhận.',
+      EMESSAGE: 'Máy chủ SMTP từ chối nội dung thư.',
+    };
+    throw new AppError(messages[code || ''] || 'Gửi email thất bại. Kiểm tra cấu hình SMTP và thử lại.', 502);
+  }
+}
+
 export const emailService = {
   async sendPasswordReset(recipient: string, code: string) {
+    if (!emailRegex.test(recipient)) throw AppError.badRequest('Email không hợp lệ');
     const { transporter, setting } = await transport();
     const rendered = renderEmail({ key: 'password_reset', name: 'Đặt lại mật khẩu', enabled: true,
       subject: 'Mã xác thực đặt lại mật khẩu MobiFone',
@@ -220,27 +244,27 @@ export const emailService = {
   },
   async verify() {
     const { transporter } = await transport();
-    await transporter.verify();
+    await smtpOperation(() => transporter.verify());
     return { ok: true };
   },
   async sendTest(recipient: string) {
     if (!emailRegex.test(recipient)) throw AppError.badRequest('Email không hợp lệ');
     const { transporter, setting } = await transport();
-    await transporter.sendMail({
-      from: `"${cleanHeader(setting.from_name)}" <${cleanHeader(setting.from_email)}>`,
+    await smtpOperation(() => transporter.sendMail({
+      from: { name: cleanHeader(setting.from_name), address: setting.from_email },
       to: recipient,
-      subject: 'Kiểm tra email MobiFone Sơn La',
-      html: renderEmail(
+      replyTo: setting.reply_to || undefined,
+      ...renderEmail(
         {
           key: 'test',
           name: 'test',
           enabled: true,
-          subject: 'Kiểm tra',
+          subject: 'Kiểm tra email MobiFone Sơn La',
           html: '<p>Thư thử nghiệm tiếng Việt: MobiFone Sơn La.</p>',
         },
         {},
-      ).html,
-    });
+      ),
+    }));
     return { sent: true, recipient: masked(recipient) };
   },
   async templates() {
@@ -332,7 +356,7 @@ export const emailService = {
   },
   async retry(id: number) {
     await sequelize.query(
-      "UPDATE email_outbox SET status='queued',next_attempt_at=NOW(),last_error=NULL WHERE id=:id AND status IN ('failed','suppressed')",
+      "UPDATE email_outbox SET status='queued',attempts=0,next_attempt_at=NOW(),last_error=NULL,claim_token=NULL,locked_at=NULL WHERE id=:id AND status IN ('failed','suppressed')",
       { replacements: { id } },
     );
   },
@@ -406,16 +430,20 @@ export async function processEmailOutbox() {
         );
         continue;
       }
-      const { transporter } = await transport();
+      const { transporter } = await transport(setting);
       const data = typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
       const rendered = renderEmail(templates[0], data);
-      await transporter.sendMail({
-        from: `"${cleanHeader(setting.from_name)}" <${cleanHeader(setting.from_email)}>`,
+      const delivery = await transporter.sendMail({
+        from: { name: cleanHeader(setting.from_name), address: setting.from_email },
         to: row.recipient,
         replyTo: setting.reply_to || undefined,
         bcc: setting.bcc || undefined,
         ...rendered,
       });
+      // SMTP may accept only the internal BCC while rejecting the customer.
+      if (delivery.rejected?.some((address) => String(address).toLowerCase() === row.recipient.toLowerCase())) {
+        throw Object.assign(new Error('Recipient rejected'), { code: 'EENVELOPE' });
+      }
       await sequelize.query(
         "UPDATE email_outbox SET status='sent',attempts=attempts+1,sent_at=NOW(),claim_token=NULL,last_error=NULL WHERE id=:id AND claim_token=:claim",
         { replacements: { id: row.id, claim } },
