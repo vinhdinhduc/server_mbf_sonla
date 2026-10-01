@@ -126,7 +126,13 @@ describe('AI settings diagnostics', () => {
         api_key: 'replacement',
       }),
     ).resolves.toMatchObject({ ok: true });
-    expect(createAiProvider).toHaveBeenCalledWith('gemini', 'test', 'replacement', undefined);
+    expect(createAiProvider).toHaveBeenCalledWith(
+      'gemini',
+      'test',
+      'replacement',
+      undefined,
+      expect.objectContaining({ provider: 'gemini', model: 'test' }),
+    );
   });
 
   test('recovers by saving a new key encrypted with the current application secret', async () => {

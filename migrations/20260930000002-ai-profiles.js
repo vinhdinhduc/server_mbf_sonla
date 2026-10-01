@@ -21,7 +21,8 @@ module.exports = {
   async down(q) {
     const tables = await q.showAllTables();
     if (!tables.includes('ai_profiles')) return;
-    if (tables.includes('ai_profiles_rollback')) throw new Error('Profile rollback archive already exists');
+    if (tables.includes('ai_profiles_rollback'))
+      throw new Error('Profile rollback archive already exists');
     await q.renameTable('ai_profiles', 'ai_profiles_rollback');
   },
 };

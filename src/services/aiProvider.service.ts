@@ -31,12 +31,6 @@ export function providerErrorCode(error: unknown): string {
   return status && status >= 500 ? 'provider_unavailable' : 'connection_error';
 }
 
-class ProviderRequestError extends Error {
-  constructor(readonly status: number) {
-    super('AI provider request failed');
-  }
-}
-
 class EmptyResponseError extends Error {
   constructor(readonly result: AiChatResult) {
     super('AI provider returned an empty reply');
@@ -174,8 +168,16 @@ class AnthropicProvider extends RecordedProvider {
     signal: AbortSignal,
   ): Promise<AiChatResult> {
     if (params.onText || params.tools?.length) {
-      return executeAdapter(getProvider('anthropic'), 'https://api.anthropic.com/v1', this.apiKey,
-        this.model, system, history, params, signal);
+      return executeAdapter(
+        getProvider('anthropic'),
+        'https://api.anthropic.com/v1',
+        this.apiKey,
+        this.model,
+        system,
+        history,
+        params,
+        signal,
+      );
     }
     const client = new Anthropic({ apiKey: this.apiKey, maxRetries: 0 });
     const response = await client.messages.create(
@@ -221,7 +223,17 @@ class OpenAiCompatibleProvider extends RecordedProvider {
     params: AiChatParams,
     signal: AbortSignal,
   ): Promise<AiChatResult> {
-    return executeAdapter(this.definition, this.baseUrl, this.apiKey, this.model, system, history, params, signal, this.custom);
+    return executeAdapter(
+      this.definition,
+      this.baseUrl,
+      this.apiKey,
+      this.model,
+      system,
+      history,
+      params,
+      signal,
+      this.custom,
+    );
   }
 }
 
@@ -235,7 +247,17 @@ export function createAiProvider(
   if (provider === 'anthropic') return new AnthropicProvider(apiKey, model, provider, price);
   const resolved = resolveEndpoint(provider, options.endpoint_id, options.base_url);
   if (provider === 'custom') validateBaseUrl(resolved.baseUrl);
-  const routedModel = provider === 'huggingface' && options.host && options.host !== 'auto'
-    ? `${model.split(':')[0]}:${options.host}` : model;
-  return new OpenAiCompatibleProvider(apiKey, routedModel, provider, resolved.baseUrl, price, resolved.definition, provider === 'custom');
+  const routedModel =
+    provider === 'huggingface' && options.host && options.host !== 'auto'
+      ? `${model.split(':')[0]}:${options.host}`
+      : model;
+  return new OpenAiCompatibleProvider(
+    apiKey,
+    routedModel,
+    provider,
+    resolved.baseUrl,
+    price,
+    resolved.definition,
+    provider === 'custom',
+  );
 }

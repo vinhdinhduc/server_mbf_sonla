@@ -25,23 +25,33 @@ import { aiUsageService, estimateCost } from '../services/aiUsage.service';
 function draftError(error: unknown) {
   if (error instanceof AppError) return error;
   const messages: Record<string, string> = {
-    invalid_key: 'API key không hợp lệ hoặc đã hết hiệu lực.', access_denied: 'Key chưa có quyền truy cập model.',
-    model_not_found: 'Không tìm thấy model hoặc endpoint.', quota_or_rate_limit: 'Đã hết hạn mức hoặc vượt giới hạn gọi API.',
-    timeout: 'Nhà cung cấp phản hồi quá thời gian chờ 20 giây.', invalid_request: 'Model hoặc tham số chưa được chấp nhận.',
+    invalid_key: 'API key không hợp lệ hoặc đã hết hiệu lực.',
+    access_denied: 'Key chưa có quyền truy cập model.',
+    model_not_found: 'Không tìm thấy model hoặc endpoint.',
+    quota_or_rate_limit: 'Đã hết hạn mức hoặc vượt giới hạn gọi API.',
+    timeout: 'Nhà cung cấp phản hồi quá thời gian chờ 20 giây.',
+    invalid_request: 'Model hoặc tham số chưa được chấp nhận.',
   };
-  return AppError.badRequest(messages[providerErrorCode(error)] || 'Không thể nhận phản hồi. Kiểm tra key, model và endpoint rồi thử lại.');
+  return AppError.badRequest(
+    messages[providerErrorCode(error)] ||
+      'Không thể nhận phản hồi. Kiểm tra key, model và endpoint rồi thử lại.',
+  );
 }
 
 export const aiController = {
-  async providers(_req: Request, res: Response) { sendSuccess(res, providers); },
+  async providers(_req: Request, res: Response) {
+    sendSuccess(res, providers);
+  },
   async models(req: Request, res: Response) {
     const input = aiModelsSchema.parse({ ...req.body, provider: req.params.id });
     try {
-      const key = input.api_key || await profileKey(input, await readAiValues());
+      const key = input.api_key || (await profileKey(input, await readAiValues()));
       if (!key) throw AppError.badRequest('Vui lòng nhập API key để lấy danh sách model.');
       res.setHeader('Cache-Control', 'no-store');
       sendSuccess(res, await listProviderModels(input.provider, key, input));
-    } catch (error) { throw draftError(error); }
+    } catch (error) {
+      throw draftError(error);
+    }
   },
   async getSettings(_req: Request, res: Response) {
     sendSuccess(res, await aiSettingsService.getAdminConfig());
@@ -120,15 +130,43 @@ export const aiController = {
         const values = await readAiValues();
         const key = await profileKey({ ...input.profile, profile_id: input.profile.id }, values);
         if (!key) throw AppError.badRequest('Vui lòng nhập API key cho profile đang thử.');
-        const context = input.rag_enabled ? await buildChatContext(input.message) : { text: 'Không sử dụng dữ liệu bổ sung.', sources: [] };
-        const price = priceFor(values, input.profile.provider, input.profile.model, input.profile.endpoint_id);
+        const context = input.rag_enabled
+          ? await buildChatContext(input.message)
+          : { text: 'Không sử dụng dữ liệu bổ sung.', sources: [] };
+        const price = priceFor(
+          values,
+          input.profile.provider,
+          input.profile.model,
+          input.profile.endpoint_id,
+        );
         const started = Date.now();
-        const prompt = input.system_prompt.replace(/\{\{hotline\}\}/g, (await settingService.getRawValue('hotline')) || '18001090');
-        const result = await createAiProvider(input.profile.provider, input.profile.model, key, price, input.profile).chat(prompt, context.text, input.history, input.message, { temperature: input.profile.temperature, maxTokens: input.profile.max_tokens, topP: input.profile.top_p });
+        const prompt = input.system_prompt.replace(
+          /\{\{hotline\}\}/g,
+          (await settingService.getRawValue('hotline')) || '18001090',
+        );
+        const result = await createAiProvider(
+          input.profile.provider,
+          input.profile.model,
+          key,
+          price,
+          input.profile,
+        ).chat(prompt, context.text, input.history, input.message, {
+          temperature: input.profile.temperature,
+          maxTokens: input.profile.max_tokens,
+          topP: input.profile.top_p,
+        });
         res.setHeader('Cache-Control', 'no-store');
-        sendSuccess(res, { reply: result.text, model: result.model || input.profile.model, usage: result.usage, estimated_cost: estimateCost(result.usage, price), latency_ms: Date.now() - started });
+        sendSuccess(res, {
+          reply: result.text,
+          model: result.model || input.profile.model,
+          usage: result.usage,
+          estimated_cost: estimateCost(result.usage, price),
+          latency_ms: Date.now() - started,
+        });
         return;
-      } catch (error) { throw draftError(error); }
+      } catch (error) {
+        throw draftError(error);
+      }
     }
     sendSuccess(
       res,

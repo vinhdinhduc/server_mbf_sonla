@@ -14,7 +14,7 @@ describe('AI provider transport', () => {
       .spyOn(global, 'fetch')
       .mockResolvedValueOnce(new Response('', { status: 503 }))
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ choices: [{ message: { content: 'OK' } }] }), {
+        new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'OK' }] } }] }), {
           status: 200,
         }),
       );
@@ -60,6 +60,8 @@ describe('AI provider transport', () => {
           JSON.stringify({
             choices: [{ message: { content: 'private reply' } }],
             usage: { prompt_tokens: 123, completion_tokens: 45 },
+            candidates: [{ content: { parts: [{ text: 'private reply' }] } }],
+            usageMetadata: { promptTokenCount: 123, candidatesTokenCount: 45 },
           }),
         ),
       );
@@ -97,7 +99,7 @@ describe('AI provider transport', () => {
     jest.mocked(Anthropic).mockImplementation(() => ({ messages: { create } }) as never);
     expect(
       await createAiProvider('anthropic', 'test', 'key').chat('s', 'c', [], 'q', params),
-    ).toEqual({ text: 'A\nB', usage: { inputTokens: 99, outputTokens: 10 } });
+    ).toMatchObject({ text: 'A\nB', usage: { inputTokens: 99, outputTokens: 10 } });
   });
 
   test('an empty paid response still records usage without retrying', async () => {
@@ -132,7 +134,7 @@ describe('AI provider transport', () => {
       );
     await expect(
       createAiProvider('openai', 'test', 'key').testConnection(params),
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({ text: 'OK', model: 'test' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(console.error).toHaveBeenCalledWith('AI usage write failed');
   });
