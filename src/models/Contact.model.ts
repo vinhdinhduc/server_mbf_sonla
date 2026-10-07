@@ -20,6 +20,8 @@ export class Contact extends Model<InferAttributes<Contact>, InferCreationAttrib
 
   declare email: string;
 
+  declare source: CreationOptional<'website' | 'chatbot'>;
+
   declare message: string;
 
   declare code: CreationOptional<string | null>;
@@ -48,6 +50,7 @@ export function initContactModel(sequelize: Sequelize): typeof Contact {
       name: { type: DataTypes.STRING(100), allowNull: false },
       phone: { type: DataTypes.STRING(20), allowNull: false },
       email: { type: DataTypes.STRING(100), allowNull: false },
+      source: { type: DataTypes.ENUM('website', 'chatbot'), allowNull: false, defaultValue: 'website' },
       message: { type: DataTypes.TEXT, allowNull: false },
       code: { type: DataTypes.STRING(24), allowNull: true },
       topic: { type: DataTypes.STRING(50), allowNull: true },

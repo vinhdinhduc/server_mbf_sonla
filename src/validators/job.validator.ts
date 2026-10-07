@@ -62,11 +62,14 @@ export const updateJobSchema = z.object({
 export const applyJobSchema = z
   .object({
     job_id: z.coerce.number().int().positive().optional().nullable(),
-    full_name: z.string().trim().min(1).max(100),
-    phone: z.string().regex(/^(0|\+84)\d{9}$/),
-    email: z.string().email().max(150),
-    introduction: z.string().max(2000).optional().nullable(),
-    agreed_terms: z.preprocess((v) => v === 'true' ? true : v, agreedTermsSchema),
+    full_name: z.string().trim().min(2, 'Họ tên cần ít nhất 2 ký tự').max(100),
+    phone: z
+      .string()
+      .transform((value) => value.replace(/[\s.()-]/g, '').replace(/^\+84/, '0'))
+      .pipe(z.string().regex(/^0[35789]\d{8}$/, 'SĐT Việt Nam không hợp lệ')),
+    email: z.string().trim().toLowerCase().email('Email không hợp lệ').max(150),
+    introduction: z.string().max(1000, 'Giới thiệu tối đa 1.000 ký tự').optional().nullable(),
+    agreed_terms: z.preprocess((v) => (v === 'true' ? true : v), agreedTermsSchema),
     website: z.string().max(100).optional().default(''),
     recaptcha_token: z.string().min(1),
   })
@@ -77,3 +80,4 @@ export const updateApplicationSchema = z.object({
 });
 export type JobDto = z.infer<typeof jobSchema>;
 export type UpdateJobDto = z.infer<typeof updateJobSchema>;
+export type ApplyJobDto = z.infer<typeof applyJobSchema>;

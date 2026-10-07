@@ -31,7 +31,7 @@ describe('Chatbot grounding and conversation', () => {
     }
     jest.spyOn(AiChatLog, 'count').mockResolvedValue(0);
     jest.spyOn(AiChatLog, 'findAll').mockResolvedValue([]);
-    jest.spyOn(AiChatLog, 'create').mockResolvedValue({} as never);
+    jest.spyOn(AiChatLog, 'create').mockResolvedValue({ id: 101 } as never);
     jest.mocked(aiSettingsService.getPublicConfig).mockResolvedValue({
       enabled: true,
       rag_enabled: true,
@@ -122,6 +122,7 @@ describe('Chatbot grounding and conversation', () => {
       reply: 'Vui lòng liên hệ hỗ trợ',
       status: 'unavailable',
       sources: [],
+      answer_id: 101,
     });
   });
 

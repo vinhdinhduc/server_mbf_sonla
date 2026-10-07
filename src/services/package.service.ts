@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
 import { Package } from '../models/Package.model';
+import { RegistrationItem } from '../models/RegistrationItem.model';
 import { AppError } from '../utils/AppError';
 import { CreatePackageDto, UpdatePackageDto } from '../validators/package.validator';
 
@@ -19,7 +20,17 @@ export const packageService = {
   },
 
   async getPublicBySlug(slug: string) {
-    const pkg = await Package.findOne({ where: { slug, status: 'active', deleted_at: null, [Op.and]: [{ [Op.or]: [{ effective_from: null }, { effective_from: { [Op.lte]: new Date() } }] }, { [Op.or]: [{ effective_to: null }, { effective_to: { [Op.gte]: new Date() } }] }] } });
+    const pkg = await Package.findOne({
+      where: {
+        slug,
+        status: 'active',
+        deleted_at: null,
+        [Op.and]: [
+          { [Op.or]: [{ effective_from: null }, { effective_from: { [Op.lte]: new Date() } }] },
+          { [Op.or]: [{ effective_to: null }, { effective_to: { [Op.gte]: new Date() } }] },
+        ],
+      },
+    });
     if (!pkg) throw AppError.notFound('Không tìm thấy gói cước');
     return pkg;
   },
@@ -52,6 +63,15 @@ export const packageService = {
 
   async remove(id: number) {
     const pkg = await this.getById(id);
+    const references = await RegistrationItem.count({
+      where: { type: 'goi_cuoc', reference_id: id },
+      distinct: true,
+      col: 'registration_group_id',
+    });
+    if (references)
+      throw AppError.badRequest(
+        `Gói này có ${references} đăng ký. Chuyển sang Ngừng bán để giữ lịch sử đăng ký.`,
+      );
     await pkg.update({ status: 'inactive', deleted_at: new Date() });
   },
 };

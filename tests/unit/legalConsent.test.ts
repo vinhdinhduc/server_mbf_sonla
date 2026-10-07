@@ -48,8 +48,14 @@ const forms = [
     applyJobSchema,
     { full_name: 'A', phone: '0912345678', email: 'a@example.com', recaptcha_token: 'x' },
   ],
-  [chatbotMessageSchema, { session_id: 'session', message: 'Hỗ trợ' }],
 ] as const;
+it('accepts chatbot questions without consent and ignores supplied consent metadata', () => {
+  const input = { session_id: 'session', message: 'Hỗ trợ' };
+  expect(chatbotMessageSchema.parse(input)).toEqual(input);
+  expect(chatbotMessageSchema.parse({
+    ...input, agreed_terms: true, agreed_terms_at: '2000-01-01', agreed_terms_version: 'fake',
+  })).toEqual(input);
+});
 it.each(forms)('requires explicit consent in each public collection schema %#', (schema, input) => {
   for (const agreed_terms of [undefined, false, 'false', 0, 1, null]) {
     expect(schema.safeParse({ ...input, consent: true, agreed_terms }).success).toBe(false);

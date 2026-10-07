@@ -16,6 +16,17 @@ export interface LoginResult {
 }
 
 export const authService = {
+  async verifyPassword(userId: number, password: string): Promise<void> {
+    const user = await User.scope('withPassword').findByPk(userId);
+    if (
+      !user ||
+      user.status !== 'active' ||
+      !(await bcrypt.compare(password, user.password_hash))
+    ) {
+      throw AppError.unauthorized('Mật khẩu không đúng');
+    }
+  },
+
   async login(dto: LoginDto): Promise<LoginResult> {
     const user = await User.scope('withPassword').findOne({ where: { username: dto.username } });
     if (!user) {
@@ -31,7 +42,12 @@ export const authService = {
     }
 
     const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role, session_version: user.session_version },
+      {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        session_version: user.session_version,
+      },
       env.JWT_SECRET,
       { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions,
     );

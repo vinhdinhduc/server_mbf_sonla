@@ -9,6 +9,7 @@ import {
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
 import { verifyRecaptcha } from '../utils/verifyRecaptcha';
 import { promises as fs } from 'fs';
+import { AppError } from '../utils/AppError';
 
 export const jobController = {
   async listPublic(req: Request, res: Response) {
@@ -26,17 +27,19 @@ export const jobController = {
     sendSuccess(res, await jobService.publicDetail(req.params.slug));
   },
   async apply(req: Request, res: Response) {
-    let dto;
+    let result;
     try {
-      dto = applyJobSchema.parse(req.body);
+      const dto = applyJobSchema.parse(req.body);
+      if (!req.file) throw AppError.badRequest('Vui lòng tải CV');
       await verifyRecaptcha(dto.recaptcha_token);
+      result = await jobService.apply(dto, req.file);
     } catch (error) {
       // Multer has already written the CV before parsing multipart fields.
       // A rejected consent/validation request must not leave personal data behind.
       if (req.file) await fs.unlink(req.file.path).catch(() => undefined);
-      throw error;
+      if (error instanceof AppError || (error as Error).name === 'ZodError') throw error;
+      throw AppError.internal('Chưa thể nhận hồ sơ. Vui lòng thử lại sau');
     }
-    const result = await jobService.apply(dto, req.file!);
     sendCreated(res, result, 'Đã nhận hồ sơ ứng tuyển');
   },
   async listAdmin(_req: Request, res: Response) {
@@ -78,7 +81,16 @@ export const jobController = {
   },
   async cv(req: Request, res: Response) {
     const item = await jobService.cv(Number(req.params.id));
-    res.download(item.cv_path, item.cv_original_name);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.download(item.cv_path, item.cv_original_name, (error) => {
+      if (!error) return;
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
+      res.status(404).json({ success: false, data: null, message: 'Không tìm thấy CV' });
+    });
   },
   async exportApplications(_req: Request, res: Response) {
     const buffer = await jobService.exportApplications();

@@ -9,7 +9,8 @@ export const createContactSchema = z
       .string()
       .trim()
       .regex(/^(0|\+84)\d{9}$/, 'Số điện thoại không hợp lệ'),
-    email: z.string().email().max(100),
+    email: z.union([z.string().trim().email().max(100), z.literal('')]).optional().default(''),
+    source: z.enum(['website', 'chatbot']).optional().default('website'),
     topic: z.enum(['package', 'sim', 'solution', 'support', 'other']),
     store_id: z.coerce.number().int().positive().optional().nullable(),
     message: z.string().trim().min(1).max(1000),
@@ -18,6 +19,8 @@ export const createContactSchema = z
     recaptcha_token: z.string().min(1, 'Thiếu recaptcha_token'),
   })
   .superRefine((value, context) => {
+    if (value.source !== 'chatbot' && !value.email)
+      context.addIssue({ code: 'custom', path: ['email'], message: 'Email không hợp lệ' });
     if (value.website)
       context.addIssue({ code: 'custom', path: ['website'], message: 'Yêu cầu không hợp lệ' });
   });

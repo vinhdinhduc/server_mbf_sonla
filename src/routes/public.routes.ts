@@ -16,7 +16,7 @@ import { chatbotController } from '../controllers/chatbot.controller';
 import { appointmentController } from '../controllers/appointment.controller';
 import { aiRateLimit } from '../middlewares/aiRateLimit.middleware';
 import { jobController } from '../controllers/job.controller';
-import { uploadCv, validateUploadedCv } from '../config/multer';
+import { receiveCvUpload, validateUploadedCv } from '../config/multer';
 import { utilityController } from '../controllers/utility.controller';
 
 const router = Router();
@@ -65,7 +65,7 @@ router.get('/jobs', asyncHandler(jobController.listPublic));
 router.get('/jobs/:slug', asyncHandler(jobController.detail));
 router.post(
   '/job-applications',
-  uploadCv.single('cv'),
+  receiveCvUpload,
   validateUploadedCv,
   asyncHandler(jobController.apply),
 );
@@ -79,5 +79,6 @@ router.get('/settings', asyncHandler(settingController.listPublic));
 
 router.post('/chatbot/message', aiRateLimit, asyncHandler(chatbotController.message));
 router.post('/chat', aiRateLimit, asyncHandler(chatbotController.message));
+router.post('/chat/feedback', asyncHandler(chatbotController.feedback));
 
 export default router;

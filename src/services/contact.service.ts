@@ -11,6 +11,7 @@ export const contactService = {
       name: dto.name,
       phone: dto.phone,
       email: dto.email,
+      source: dto.source,
       message: dto.message,
       topic: dto.topic,
       store_id: dto.store_id ?? null,
@@ -40,12 +41,12 @@ export const contactService = {
         variables,
         `contact:${contact.id}:staff`,
       ),
-      emailService.enqueue(
+      dto.email ? emailService.enqueue(
         dto.email,
         'contact_received_customer',
         variables,
         `contact:${contact.id}:customer`,
-      ),
+      ) : Promise.resolve(),
     ]);
 
     return contact;

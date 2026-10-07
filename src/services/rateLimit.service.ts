@@ -6,7 +6,7 @@ import { AppError } from '../utils/AppError';
 export interface RatePolicy { key: string; enabled: number | boolean; max_requests: number; window_seconds: number; block_seconds: number; key_by: string; message: string }
 interface IpRule { id: number; kind: 'allow' | 'block'; cidr: string; reason: string | null; expires_at: Date | null }
 const defaults: RatePolicy[] = [
-  ['login', 5, 900, 900, 'ip_username'], ['contact', 5, 3600, 3600, 'ip'],
+  ['login', 5, 900, 900, 'ip_username'], ['contact', 5, 3600, 3600, 'ip'], ['job_application', 5, 3600, 3600, 'ip'],
   ['registration_ip', 10, 3600, 3600, 'ip'], ['registration_phone', 3, 3600, 3600, 'phone'],
   ['appointment', 5, 3600, 3600, 'ip'], ['newsletter', 5, 3600, 3600, 'ip'],
   ['lookup', 10, 60, 60, 'ip'], ['sim_search', 120, 60, 60, 'ip'],
@@ -44,10 +44,11 @@ function routeKeys(method: string, path: string): string[] {
   if (/\/admin\/rate-limits(?:\/|$)/.test(path)) return [];
   if (method === 'POST' && /\/auth\/login$/.test(path)) return ['login'];
   if (method === 'POST' && /\/public\/contacts$/.test(path)) return ['contact'];
+  if (method === 'POST' && /\/public\/job-applications$/.test(path)) return ['job_application'];
   if (method === 'POST' && /\/public\/registrations$/.test(path)) return ['registration_ip', 'registration_phone'];
   if (method === 'POST' && /\/public\/appointments$/.test(path)) return ['appointment'];
   if (method === 'POST' && /\/public\/newsletter\/subscribe$/.test(path)) return ['newsletter'];
-  if (method === 'POST' && /\/public\/(chat|chatbot\/message)$/.test(path)) return ['chat'];
+  if (method === 'POST' && /\/public\/(chat(?:\/feedback)?|chatbot\/message)$/.test(path)) return ['chat'];
   if (method === 'POST' && /\/public\/registrations\/(lookup|receipt)$/.test(path)) return ['lookup'];
   if (method === 'GET' && /\/public\/sims$/.test(path)) return ['sim_search'];
   if (method === 'POST' && /\/admin\/media$/.test(path)) return ['upload'];

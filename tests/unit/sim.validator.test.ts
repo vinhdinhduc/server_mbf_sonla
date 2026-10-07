@@ -1,6 +1,7 @@
 import {
   createSimSchema,
   bulkSimStatusSchema,
+  bulkSimDeleteSchema,
   listAdminSimQuerySchema,
   listSimQuerySchema,
   exportSimQuerySchema,
@@ -38,7 +39,9 @@ describe('sim.validator', () => {
       sort: 'created_at',
       direction: 'desc',
     });
-    expect(() => listAdminSimQuerySchema.parse({ sort: 'price; DROP TABLE sim_numbers' })).toThrow();
+    expect(() =>
+      listAdminSimQuerySchema.parse({ sort: 'price; DROP TABLE sim_numbers' }),
+    ).toThrow();
     expect(() => listAdminSimQuerySchema.parse({ page_size: 1000 })).toThrow();
   });
 
@@ -48,10 +51,18 @@ describe('sim.validator', () => {
       status: 'hidden',
     });
     expect(() => bulkSimStatusSchema.parse({ ids: [], status: 'sold' })).toThrow();
+    expect(bulkSimDeleteSchema.parse({ ids: [1, 2], password: 'secret' })).toEqual({
+      ids: [1, 2],
+      password: 'secret',
+    });
+    expect(() => bulkSimDeleteSchema.parse({ ids: [1], password: '' })).toThrow();
   });
 
   it('chỉ cho xuất các cột hợp lệ, không trùng lặp', () => {
-    expect(exportSimQuerySchema.parse({ scope: 'all', columns: 'phone,fee' }).columns).toEqual(['phone', 'fee']);
+    expect(exportSimQuerySchema.parse({ scope: 'all', columns: 'phone,fee' }).columns).toEqual([
+      'phone',
+      'fee',
+    ]);
     expect(() => exportSimQuerySchema.parse({ columns: 'phone,password' })).toThrow();
     expect(() => exportSimQuerySchema.parse({ columns: 'phone,phone' })).toThrow();
     expect(() => exportSimQuerySchema.parse({ columns: '' })).toThrow();

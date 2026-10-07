@@ -23,6 +23,28 @@ const columns: Array<{ key: ColumnKey; label: string; width: number; numFmt?: st
   { key: 'createdAt', label: 'Ngày tạo', width: 22 },
 ];
 
+const catalogLabels: Record<string, string> = {
+  so_dep: 'Số đẹp',
+  phong_thuy: 'Phong thủy',
+  nam_sinh: 'Năm sinh',
+  tra_truoc: 'Trả trước',
+  sim_data: 'Sim Data',
+  esim: 'eSim',
+};
+const simTypeLabels: Record<string, string> = {
+  tam_hoa: 'Tam hoa',
+  tu_quy: 'Tứ quý',
+  phat_loc: 'Phát lộc',
+  than_tai: 'Thần tài',
+  thuong: 'Thường',
+};
+const statusLabels: Record<string, string> = {
+  available: 'Còn hàng',
+  reserved: 'Đang giữ',
+  sold: 'Đã bán',
+  hidden: 'Ẩn',
+};
+
 function exportWhere(query: ExportQuery) {
   if (query.scope === 'all') return {};
   const where: Record<string, unknown> = {};
@@ -98,11 +120,11 @@ export const simExportService = {
         const values: Record<ColumnKey, string | number | Date> = {
           phone: row.phone_number,
           subscription: row.subscription_type === 'prepaid' ? 'Trả trước' : 'Trả sau',
-          catalog: row.catalog,
-          pattern: row.sim_type,
+          catalog: catalogLabels[row.catalog] ?? row.catalog,
+          pattern: simTypeLabels[row.sim_type] ?? row.sim_type,
           fee: fees[row.subscription_type],
           commitment: row.commitment_months ?? 0,
-          status: row.status,
+          status: statusLabels[row.status] ?? row.status,
           note: row.bundle_note ?? '',
           createdAt: row.created_at,
         };

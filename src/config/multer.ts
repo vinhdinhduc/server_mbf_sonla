@@ -7,9 +7,10 @@ import sharp from 'sharp';
 import { NextFunction, Request, Response } from 'express';
 import { env } from './env';
 import { AppError } from '../utils/AppError';
+import { isSafeCvContent } from '../utils/cvSecurity';
 
 const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR);
-const privateCvDir = path.resolve(process.cwd(), 'private', 'cv');
+export const privateCvDir = path.resolve(process.cwd(), 'private', 'cv');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -212,9 +213,54 @@ const cvStorage = multer.diskStorage({
 });
 export const uploadCv = multer({
   storage: cvStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => cb(null, /\.(pdf|docx)$/i.test(file.originalname)),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 8, fieldSize: 8192, parts: 10 },
+  fileFilter: (_req, file, cb) => {
+    const expected = /\.pdf$/i.test(file.originalname)
+      ? 'application/pdf'
+      : /\.docx$/i.test(file.originalname)
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        : '';
+    if (!expected || file.mimetype !== expected) {
+      cb(AppError.badRequest('CV phải đúng định dạng PDF hoặc DOCX'));
+      return;
+    }
+    cb(null, true);
+  },
 });
+export function receiveCvUpload(req: Request, res: Response, next: NextFunction) {
+  const size = Number(req.headers['content-length'] || 0);
+  if (size > 6 * 1024 * 1024) {
+    next(new AppError('Hồ sơ tải lên vượt quá dung lượng cho phép (CV tối đa 5MB)', 413));
+    return;
+  }
+  req.setTimeout(90_000, () => {
+    if (!res.headersSent)
+      res.status(408).json({
+        success: false,
+        data: null,
+        message: 'Tải CV quá thời gian chờ. Vui lòng thử lại.',
+      });
+    req.destroy();
+  });
+  res.once('finish', () => req.setTimeout(0));
+  uploadCv.single('cv')(req, res, (error) => {
+    if (error instanceof multer.MulterError) {
+      next(
+        AppError.badRequest(
+          error.code === 'LIMIT_FILE_SIZE'
+            ? 'CV vượt quá 5MB'
+            : 'Hồ sơ tải lên không hợp lệ hoặc vượt quá giới hạn',
+        ),
+      );
+      return;
+    }
+    if (error && !(error instanceof AppError)) {
+      next(AppError.internal('Chưa thể tải CV. Vui lòng thử lại sau'));
+      return;
+    }
+    next(error);
+  });
+}
 export function hasValidCvSignature(buffer: Buffer, originalName: string) {
   const isPdf = buffer.subarray(0, 5).toString('ascii') === '%PDF-';
   const isDocx =
@@ -227,12 +273,17 @@ export async function validateUploadedCv(req: Request, _res: Response, next: Nex
     return;
   }
   try {
-    const head = Buffer.alloc(8);
-    const handle = await fs.promises.open(req.file.path, 'r');
-    await handle.read(head, 0, 8, 0);
-    await handle.close();
-    if (!hasValidCvSignature(head, req.file.originalname))
-      throw AppError.badRequest('Nội dung CV không đúng định dạng PDF/DOCX');
+    const contents = await fs.promises.readFile(req.file.path);
+    const head = contents.subarray(0, 8);
+    if (
+      !contents.length ||
+      contents.length > 5 * 1024 * 1024 ||
+      !hasValidCvSignature(head, req.file.originalname) ||
+      !isSafeCvContent(contents, req.file.originalname)
+    )
+      throw AppError.badRequest(
+        'Nội dung CV không hợp lệ. Vui lòng dùng PDF/DOCX không chứa mã thực thi hoặc macro',
+      );
     req.file.mimetype =
       head.subarray(0, 5).toString('ascii') === '%PDF-'
         ? 'application/pdf'
@@ -240,6 +291,10 @@ export async function validateUploadedCv(req: Request, _res: Response, next: Nex
     next();
   } catch (error) {
     await fs.promises.unlink(req.file.path).catch(() => undefined);
-    next(error);
+    next(
+      error instanceof AppError
+        ? error
+        : AppError.badRequest('Không thể kiểm tra CV. Vui lòng chọn lại tệp'),
+    );
   }
 }

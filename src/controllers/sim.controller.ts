@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { simService } from '../services/sim.service';
 import { simExportService } from '../services/sim-export.service';
+import { authService } from '../services/auth.service';
 import {
   bulkSimDeleteSchema,
   bulkSimStatusSchema,
@@ -132,6 +133,8 @@ export const simController = {
 
   async bulkRemove(req: Request, res: Response) {
     const dto = bulkSimDeleteSchema.parse(req.body);
+    if (!req.user?.id) throw AppError.unauthorized();
+    await authService.verifyPassword(req.user.id, dto.password);
     const result = await simService.bulkRemove(dto.ids);
     req.auditContext = { module: 'sims', action: 'delete', newValue: { ids: dto.ids } };
     sendSuccess(res, result, `Đã xóa mềm ${result.deleted} số sim`);

@@ -21,6 +21,7 @@ export const createAppointmentSchema = z.object({
 
 export const updateAppointmentSchema = z.object({
   status: z.enum(['moi', 'dang_xu_ly', 'hoan_thanh', 'huy']),
+  assigned_to: z.coerce.number().int().positive().nullable().optional(),
 });
 
 export const appointmentTokenSchema = z.string().regex(/^[a-f0-9]{48}$/);

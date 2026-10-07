@@ -47,6 +47,9 @@ export const appointmentService = {
       customer_name: dto.customer_name,
       phone: dto.phone,
       store_name: store.name,
+      appointment_date: dto.appointment_date.split('-').reverse().join('/'),
+      appointment_time: dto.appointment_time.slice(0, 5),
+      store_address: store.address,
     };
     await Promise.all([
       emailService.enqueue(
@@ -143,7 +146,16 @@ export const appointmentService = {
     if (currentUser.role === 'giao_dich_vien' && appointment.assigned_to !== currentUser.id) {
       throw AppError.forbidden('Bạn không được phép cập nhật lịch hẹn này');
     }
+    if (dto.assigned_to !== undefined && currentUser.role !== 'admin') {
+      throw AppError.forbidden('Chỉ quản trị viên được phép phân công lịch hẹn');
+    }
     await appointment.update(dto);
+    await appointment.reload({
+      include: [
+        { model: Store, as: 'store' },
+        { model: User, as: 'assignee' },
+      ],
+    });
     return appointment;
   },
 };

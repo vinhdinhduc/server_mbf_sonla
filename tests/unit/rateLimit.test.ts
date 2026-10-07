@@ -7,6 +7,20 @@ const policy = { key: 'contact', enabled: 1, max_requests: 2, window_seconds: 36
 beforeEach(() => { invalidateRateConfig(); query.mockReset(); query.mockImplementation(async (sql: string) => sql.includes('rate_limit_policies') ? [policy] : []); });
 
 describe('M11 rate limit', () => {
+  it('uses a separate applicant IP quota before accepting multipart uploads', async () => {
+    query.mockImplementation(async (sql: string) => sql.includes('rate_limit_policies') ? [{ ...policy, key: 'job_application' }] : []);
+    await consumeRateLimit('POST', '/api/v1/public/job-applications', '198.51.100.92');
+    await consumeRateLimit('POST', '/api/v1/public/job-applications', '198.51.100.92');
+    expect(await consumeRateLimit('POST', '/api/public/job-applications', '198.51.100.92')).toMatchObject({ blocked: true, limit: 2 });
+    expect((await consumeRateLimit('POST', '/api/v1/public/contacts', '198.51.100.92'))?.blocked).toBe(false);
+  });
+  it('chat feedback uses the chat rate policy rather than the general public limit', async () => {
+    query.mockImplementation(async (sql: string) => sql.includes('rate_limit_policies') ? [{ ...policy, key: 'chat' }] : []);
+    const ip = '198.51.100.91';
+    await consumeRateLimit('POST', '/api/v1/public/chat/feedback', ip);
+    await consumeRateLimit('POST', '/api/v1/public/chat/feedback', ip);
+    expect(await consumeRateLimit('POST', '/api/v1/public/chat/feedback', ip)).toMatchObject({ blocked: true, limit: 2 });
+  });
   it('TC-27 blocks the third contact request and returns retry information', async () => {
     const ip = '198.51.100.11';
     expect((await consumeRateLimit('POST', '/api/v1/public/contacts', ip))?.blocked).toBe(false);

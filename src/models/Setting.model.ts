@@ -52,6 +52,7 @@ export function initSettingModel(sequelize: Sequelize): typeof Setting {
 export const PUBLIC_SETTING_KEYS = [
   'site_name',
   'site_logo',
+  'email_logo_url',
   'hotline',
   'contact_email',
   'contact_address',
@@ -61,6 +62,7 @@ export const PUBLIC_SETTING_KEYS = [
   'theme_primary_color',
   'home_banner',
   'ai_chatbot_enabled',
+  'ai_chatbot_quick_replies',
   'footer_branch_name',
   'footer_address',
   'footer_email',

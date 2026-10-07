@@ -1,6 +1,5 @@
 /* eslint-disable no-control-regex */
 import { Op } from 'sequelize';
-import { consentAudit } from '../utils/legalConsent';
 import { AiChatLog } from '../models/AiChatLog.model';
 import { AiKnowledgeEntry } from '../models/AiKnowledgeEntry.model';
 import { Package } from '../models/Package.model';
@@ -24,6 +23,7 @@ export interface ChatSource {
 }
 
 export interface ChatAnswer {
+  answer_id?: number;
   reply: string;
   status: 'answered' | 'unavailable' | 'limited' | 'restricted';
   sources: ChatSource[];
@@ -227,15 +227,14 @@ export const chatbotService = {
     if (containsPromptAttack(rawMessage)) {
       const reply =
         'Tôi không thể cung cấp chỉ dẫn hệ thống, khóa API, mật khẩu hoặc dữ liệu bí mật. Tôi có thể hỗ trợ thông tin dịch vụ MobiFone Sơn La.';
-      await AiChatLog.create({
-        ...consentAudit(),
+      const log = await AiChatLog.create({
         session_id: sessionId,
         user_message: message || '[nội dung bị chặn]',
         ai_response: reply,
         ip_address: ipAddress,
         flagged_for_review: true,
       });
-      return { reply, status: 'restricted', sources: [] };
+      return { reply, status: 'restricted', sources: [], answer_id: Number(log.id) };
     }
     const config = await aiSettingsService.getPublicConfig();
     if (!config.enabled) throw AppError.badRequest('Chatbot AI hiện đang tạm ngưng hoạt động.');
@@ -290,8 +289,7 @@ export const chatbotService = {
       const price = readAiPrices(resolved.config).find(
         (item) => item.provider === (result.provider || config.provider) && item.model === (result.model || config.model),
       );
-      await AiChatLog.create({
-        ...consentAudit(),
+      const log = await AiChatLog.create({
         session_id: sessionId,
         user_message: message,
         ai_response: safeReply,
@@ -304,12 +302,11 @@ export const chatbotService = {
         model: result.model || config.model,
         latency_ms: Date.now() - started,
       });
-      return { reply: safeReply, status: 'answered', sources: retrieved.sources };
+      return { reply: safeReply, status: 'answered', sources: retrieved.sources, answer_id: Number(log.id) };
     } catch (error) {
       console.error('AI provider request failed', providerErrorCode(error));
       const fallback = (await settingService.getRawValue('ai_fallback_message')) || FALLBACK;
-      await AiChatLog.create({
-        ...consentAudit(),
+      const log = await AiChatLog.create({
         session_id: sessionId,
         user_message: message,
         ai_response: fallback,
@@ -319,7 +316,7 @@ export const chatbotService = {
         latency_ms: Date.now() - started,
         flagged_for_review: true,
       });
-      return { reply: fallback, status: 'unavailable', sources: [] };
+      return { reply: fallback, status: 'unavailable', sources: [], answer_id: Number(log.id) };
     }
   },
 };

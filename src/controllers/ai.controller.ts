@@ -21,6 +21,7 @@ import {
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
 import { AppError } from '../utils/AppError';
 import { aiUsageService, estimateCost } from '../services/aiUsage.service';
+import { toAdminChatLogDto } from '../utils/chatLogPrivacy';
 
 function draftError(error: unknown) {
   if (error instanceof AppError) return error;
@@ -101,20 +102,20 @@ export const aiController = {
   },
   async listLogs(req: Request, res: Response) {
     const flagged = req.query.flagged === 'true';
-    sendSuccess(
-      res,
-      await AiChatLog.findAll({
-        where: flagged ? { flagged_for_review: true } : undefined,
-        order: [['created_at', 'DESC']],
-        limit: 100,
-      }),
-    );
+    const logs = await AiChatLog.findAll({
+      where: flagged ? { flagged_for_review: true } : undefined,
+      order: [['created_at', 'DESC']],
+      limit: 100,
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    sendSuccess(res, logs.map(toAdminChatLogDto));
   },
   async updateLog(req: Request, res: Response) {
     const item = await AiChatLog.findByPk(Number(req.params.id));
     if (!item) throw AppError.notFound('Không tìm thấy hội thoại');
     await item.update(chatLogUpdateSchema.parse(req.body));
-    sendSuccess(res, item, 'Đã cập nhật đánh giá hội thoại');
+    res.setHeader('Cache-Control', 'no-store');
+    sendSuccess(res, toAdminChatLogDto(item), 'Đã cập nhật đánh giá hội thoại');
   },
   async stats(_req: Request, res: Response) {
     const rows = await sequelize.query(

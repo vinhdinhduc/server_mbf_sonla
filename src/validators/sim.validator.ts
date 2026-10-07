@@ -114,6 +114,7 @@ export const bulkSimStatusSchema = z.object({
 
 export const bulkSimDeleteSchema = z.object({
   ids: z.array(z.coerce.number().int().positive()).min(1).max(1000),
+  password: z.string().min(1, 'Vui lòng nhập mật khẩu'),
 });
 
 export type CreateSimDto = z.infer<typeof createSimSchema>;
