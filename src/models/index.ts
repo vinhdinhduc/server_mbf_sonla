@@ -27,6 +27,8 @@ import { initJobModel, Job } from './Job.model';
 import { initJobApplicationModel, JobApplication } from './JobApplication.model';
 import { initUtilityModel, Utility } from './Utility.model';
 import { initDownloadModel, Download } from './Download.model';
+import { initPromotionModel, Promotion } from './Promotion.model';
+import { initPromotionEventModel, PromotionEvent } from './PromotionEvent.model';
 
 // 1. Khoi tao tat ca model tren cung 1 Sequelize instance
 initStationModel(sequelize);
@@ -57,6 +59,8 @@ initJobModel(sequelize);
 initJobApplicationModel(sequelize);
 initUtilityModel(sequelize);
 initDownloadModel(sequelize);
+initPromotionModel(sequelize);
+initPromotionEventModel(sequelize);
 
 // 2. Khai bao association (hasMany / belongsTo) dung theo muc 5.17
 
@@ -119,6 +123,8 @@ Solution.hasMany(SolutionStep, { foreignKey: 'solution_id', as: 'steps' });
 SolutionStep.belongsTo(Solution, { foreignKey: 'solution_id', as: 'solution' });
 Job.hasMany(JobApplication, { foreignKey: 'job_id', as: 'applications' });
 JobApplication.belongsTo(Job, { foreignKey: 'job_id', as: 'job' });
+Promotion.hasMany(PromotionEvent, { foreignKey: 'promotion_id', as: 'events', onDelete: 'CASCADE' });
+PromotionEvent.belongsTo(Promotion, { foreignKey: 'promotion_id', as: 'promotion' });
 
 export {
   sequelize,
@@ -149,4 +155,6 @@ export {
   JobApplication,
   Utility,
   Download,
+  Promotion,
+  PromotionEvent,
 };

@@ -1,49 +1,77 @@
-# Dependencies
+# Dependencies and package manager caches; keep lockfiles.
 node_modules/
 .pnp
-.pnp.js
+.pnp.*
+.npm/
+.pnpm-store/
 
-# Environment variables
+# Local environment and credentials; keep configuration templates.
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
+!.env.*.example
+!.env.sample
+!.env.*.sample
+!.env.template
+!.env.*.template
+*.key
+*.pem
+*.p12
+*.pfx
 
-# Logs
+# Build output and caches.
+dist/
+build/
+*.tsbuildinfo
+.cache/
+.eslintcache
+.husky/_/
+
+# Generated reports and screenshots; keep tests, e2e and fixtures.
+coverage/
+.nyc_output/
+.playwright-results/
+test-results/
+tests-results/
+playwright-report/
+blob-report/
+ui-artifacts/
+
+# Backups; keep SQL migrations and seed scripts.
+backups/
+/backup*.sql
+*.sql.gz
+*.dump
+
+# Runtime uploads and private CVs; keep the logo used by seeders.
+/uploads/
+/src/uploads/*
+!/src/uploads/logo_ngan-1789370348641.png
+/private/
+
+# Logs and temporary files.
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# Testing
-coverage/
-.nyc_output/
-
-# Build output
-dist/
-build/
-*.tsbuildinfo
-
-# Backups (bạn có thư mục backups/)
-server/backups/
-backups/
-*.sql
-*.dump
+/tmp/
+/temp/
+*.tmp
 *.bak
+*.swp
+*.swo
+*~
 
-# Editor / OS
+# Editor and operating system files; keep shared editor settings.
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
 .idea/
 .DS_Store
 Thumbs.db
+Desktop.ini
+NUL
 
-# Package manager
-package-lock.json.bak
-.npm/
-.yarn/
-
-# Sequelize (nếu có config chứa credential)
+# Local Sequelize configuration.
 .sequelizerc.local

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { publicPromotionRoutes } from './promotion.routes';
 import { asyncHandler } from '../utils/asyncHandler';
 import { newsController } from '../controllers/news.controller';
 import { packageController } from '../controllers/package.controller';
@@ -20,6 +21,7 @@ import { receiveCvUpload, validateUploadedCv } from '../config/multer';
 import { utilityController } from '../controllers/utility.controller';
 
 const router = Router();
+router.use('/promotions', publicPromotionRoutes);
 
 router.get('/news', asyncHandler(newsController.listPublic));
 router.get('/news-featured', asyncHandler(newsController.featured));
