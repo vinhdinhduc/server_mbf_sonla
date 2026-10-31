@@ -238,7 +238,7 @@ export const aiSettingsService = {
       const started = Date.now();
       const result = await createAiProvider(
         input.provider,
-        input.model,
+        input.model.trim().replace(/^models\//, ''),
         apiKey,
         price,
         input,
@@ -254,6 +254,8 @@ export const aiSettingsService = {
         model: result?.model || input.model,
       };
     } catch (error) {
+      const err = error as any;
+      console.error('[AI test-connection] provider request failed', { message: err?.message, causeCode: err?.cause?.code, status: err?.status, body: err?.error?.error || err?.error?.message || err?.response?.data });
       const status = providerErrorStatus(error);
       if (providerErrorCode(error) === 'timeout')
         throw AppError.badRequest('Kết nối AI quá thời gian chờ 20 giây. Vui lòng thử lại.');
@@ -273,6 +275,8 @@ export const aiSettingsService = {
         throw AppError.badRequest(
           'Tài khoản AI đã chạm giới hạn hoặc hết hạn mức. Kiểm tra tài khoản nhà cung cấp.',
         );
+      if (providerErrorCode(error) === 'empty_response') throw AppError.badRequest('Nhà cung cấp kết nối được nhưng trả về nội dung rỗng.');
+      if (providerErrorCode(error) === 'connection_error' || providerErrorCode(error) === 'provider_unavailable') throw AppError.badRequest('Không kết nối được tới nhà cung cấp AI (kiểm tra timeout, proxy và mạng máy chủ).');
       throw AppError.badRequest(
         'Chưa nhận được phản hồi hợp lệ từ AI. Kiểm tra model, kết nối mạng và thử lại.',
       );

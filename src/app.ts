@@ -1,6 +1,9 @@
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+import './config/proxy';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import path from 'path';
 import { env, ALLOWED_ORIGINS_LIST } from './config/env';
 import { sequelize, testDbConnection } from './config/database';
 import './models'; // Khoi tao model + association (import side-effect)

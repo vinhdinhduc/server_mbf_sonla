@@ -56,6 +56,13 @@ const VALID_CATALOGS: SimCatalog[] = [
 const VALID_SIM_TYPES: SimType[] = ['tam_hoa', 'tu_quy', 'phat_loc', 'than_tai', 'thuong'];
 const VALID_STATUSES: SimStatus[] = ['available', 'reserved', 'sold', 'hidden'];
 const VALID_SUBSCRIPTION_TYPES: SubscriptionType[] = ['prepaid', 'postpaid'];
+const IMPORT_VALUE_LABELS: Record<string, string> = {
+  prepaid: 'Trả trước', postpaid: 'Trả sau', so_dep: 'Số đẹp', phong_thuy: 'Phong thủy',
+  nam_sinh: 'Năm sinh', tra_truoc: 'Trả trước', sim_data: 'SIM data', esim: 'eSIM',
+  tam_hoa: 'Tam hoa', tu_quy: 'Tứ quý', phat_loc: 'Phát lộc', than_tai: 'Thần tài', thuong: 'Thông thường',
+  available: 'Đang bán', reserved: 'Đang giữ', sold: 'Đã bán', hidden: 'Ẩn',
+};
+const viValues = (values: string[]) => values.map((value) => IMPORT_VALUE_LABELS[value] ?? value).join(', ');
 
 export const simService = {
   async listPublic(
@@ -307,7 +314,11 @@ export const simService = {
     previewOnly = false,
   ): Promise<ImportResult | ImportPreview> {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+    try {
+      await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+    } catch {
+      throw AppError.badRequest('Không đọc được file Excel. Hãy mở file bằng Excel và lưu lại định dạng .xlsx, sau đó thử import lại.');
+    }
     const sheet = workbook.worksheets[0];
     if (!sheet) throw AppError.badRequest('File Excel không có trang dữ liệu');
     if (sheet.rowCount > 20001) {
@@ -320,8 +331,10 @@ export const simService = {
       if (columns.has(name)) throw AppError.badRequest(`Cột bị lặp: ${name}`);
       columns.set(name, index);
     });
-    for (const name of ['phone_number', 'subscription_type', 'catalog', 'sim_type']) {
-      if (!columns.has(name)) throw AppError.badRequest(`Thiếu cột ${name}`);
+    const requiredColumns = ['phone_number', 'subscription_type', 'catalog', 'sim_type'];
+    const missingColumns = requiredColumns.filter((name) => !columns.has(name));
+    if (missingColumns.length) {
+      throw AppError.badRequest(`Thiếu cột bắt buộc: ${missingColumns.join(', ')}. Tải mẫu import kho SIM để đối chiếu tên cột.`);
     }
 
     const errors: ImportRowError[] = [];
@@ -378,31 +391,31 @@ export const simService = {
         return;
       }
       if (!VALID_STATUSES.includes(statusRaw)) {
-        errors.push({ row: rowNumber, message: 'Trạng thái không hợp lệ' });
+        errors.push({ row: rowNumber, message: `Cột “${SIM_IMPORT_HEADERS.status}”: “${IMPORT_VALUE_LABELS[statusRaw] ?? statusRaw}” không hợp lệ. Chọn một trong: ${viValues(VALID_STATUSES)}.` });
         return;
       }
 
       if (!phoneNumber) {
-        errors.push({ row: rowNumber, message: 'Thiếu số điện thoại' });
+        errors.push({ row: rowNumber, message: `Cột “${SIM_IMPORT_HEADERS.phone_number}” đang để trống.` });
         return;
       }
       if (!/^0\d{9}$/.test(phoneNumber)) {
         errors.push({
           row: rowNumber,
-          message: 'Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0',
+          message: `Cột “${SIM_IMPORT_HEADERS.phone_number}”: “${phoneNumber}” không hợp lệ; nhập đủ 10 chữ số và bắt đầu bằng 0.`,
         });
         return;
       }
       if (!VALID_SUBSCRIPTION_TYPES.includes(subscriptionType)) {
-        errors.push({ row: rowNumber, message: 'Hình thức phải là prepaid hoặc postpaid' });
+        errors.push({ row: rowNumber, message: `Cột “${SIM_IMPORT_HEADERS.subscription_type}”: “${subscriptionType || '(trống)'}” không hợp lệ. Chọn “Trả trước” hoặc “Trả sau”.` });
         return;
       }
       if (!VALID_CATALOGS.includes(catalog)) {
-        errors.push({ row: rowNumber, message: `Nhóm hiển thị không hợp lệ: ${catalog}` });
+        errors.push({ row: rowNumber, message: `Cột “${SIM_IMPORT_HEADERS.catalog}”: “${IMPORT_VALUE_LABELS[catalog] ?? catalog}” không hợp lệ. Chọn một trong: ${viValues(VALID_CATALOGS)}.` });
         return;
       }
       if (!VALID_SIM_TYPES.includes(simType)) {
-        errors.push({ row: rowNumber, message: `Kiểu số không hợp lệ: ${simType}` });
+        errors.push({ row: rowNumber, message: `Cột “${SIM_IMPORT_HEADERS.sim_type}”: “${IMPORT_VALUE_LABELS[simType] ?? simType}” không hợp lệ. Chọn một trong: ${viValues(VALID_SIM_TYPES)}.` });
         return;
       }
       if (Number.isNaN(price) || price < 0) {
@@ -548,9 +561,9 @@ export const simService = {
         '150.000 24 tháng → committed_monthly_fee = 150000 và commitment_months = 24. Nhập số thuần, không kèm đơn vị. Không tự chuyển price/price_deprecated thành cước cam kết.',
       ],
       [SIM_IMPORT_HEADERS.subscription_type, 'prepaid | postpaid'],
-      [SIM_IMPORT_HEADERS.catalog, VALID_CATALOGS.join(' | ')],
-      [SIM_IMPORT_HEADERS.sim_type, VALID_SIM_TYPES.join(' | ')],
-      [SIM_IMPORT_HEADERS.status, VALID_STATUSES.join(' | ')],
+      [SIM_IMPORT_HEADERS.catalog, viValues(VALID_CATALOGS)],
+      [SIM_IMPORT_HEADERS.sim_type, viValues(VALID_SIM_TYPES)],
+      [SIM_IMPORT_HEADERS.status, viValues(VALID_STATUSES)],
     ]);
     instructions.getRow(1).font = { bold: true };
     const output = await workbook.xlsx.writeBuffer();

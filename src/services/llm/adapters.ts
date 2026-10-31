@@ -291,8 +291,11 @@ export async function executeAdapter(
   const url = `${baseUrl.replace(/\/$/, '')}${path}`;
   const response = await (custom ? customFetch(url, init) : fetch(url, init));
   if (!response.ok) {
+    const body = await response.text().catch(() => '');
     await response.body?.cancel();
-    throw new ProviderHttpError(response.status);
+    const error = new ProviderHttpError(response.status) as ProviderHttpError & { body?: string };
+    error.body = body.slice(0, 4000);
+    throw error;
   }
   return streaming
     ? readStream(response, def, params)

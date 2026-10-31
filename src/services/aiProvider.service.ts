@@ -65,7 +65,7 @@ export interface AiProvider {
 }
 
 type History = Array<{ role: 'user' | 'assistant'; content: string }>;
-const TIMEOUT_MS = 20_000;
+const TIMEOUT_MS = 30_000;
 
 abstract class RecordedProvider implements AiProvider {
   constructor(

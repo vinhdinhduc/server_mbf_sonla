@@ -10,6 +10,18 @@ export function errorHandlerMiddleware(
   res: Response,
   _next: NextFunction,
 ): void {
+  const uploadError = err as { name?: string; code?: string };
+  if (uploadError?.name === 'MulterError') {
+    const message =
+      uploadError.code === 'LIMIT_FILE_SIZE'
+        ? 'File Excel vượt quá 5 MB. Hãy giảm kích thước file rồi tải lại.'
+        : uploadError.code === 'LIMIT_UNEXPECTED_FILE'
+          ? 'Trường tải file không hợp lệ. Hãy chọn đúng một file tại ô File Excel.'
+          : 'Không nhận được file tải lên. Kiểm tra file .xlsx và thử lại.';
+    res.status(400).json({ success: false, data: null, message, error: { code: 'UPLOAD_ERROR', message } });
+    return;
+  }
+
   if (err instanceof ZodError) {
     const message = err.errors.map((e) => e.message).join('; ');
     const fields = Object.fromEntries(
