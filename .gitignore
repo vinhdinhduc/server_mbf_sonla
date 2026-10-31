@@ -44,10 +44,7 @@ backups/
 *.dump
 
 # Runtime uploads and private CVs; keep the logo used by seeders.
-/uploads/
-/src/uploads/*
-!/src/uploads/logo_ngan-1789370348641.png
-/private/
+
 
 # Logs and temporary files.
 logs/
