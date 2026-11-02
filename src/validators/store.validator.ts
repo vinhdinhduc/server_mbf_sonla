@@ -30,7 +30,7 @@ const hours = z
 export const createStoreSchema = z.object({
   name: z.string().trim().min(1).max(255),
   street_address: z.string().trim().min(1).max(255),
-  ward_code: z.string().regex(/^\d{5}$/, 'Vui lòng chọn xã/phường hợp lệ'),
+  ward_name: z.string().trim().max(120).optional().nullable(),
   phone: z.string().trim().min(9).max(20),
   email: z.string().email().max(150).optional().nullable(),
   lat: z.coerce.number().min(8).max(24),

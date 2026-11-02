@@ -99,10 +99,12 @@ export const storeService = {
   },
 
   async create(dto: CreateStoreDto) {
-    const ward = await getWard(dto.ward_code);
-    const fullAddress = `${dto.street_address}, ${ward.name_with_type}, Tỉnh Sơn La`;
+    const wardName = normalizeWardName(dto.ward_name);
+    const fullAddress = buildStoreAddress(dto.street_address, wardName);
     return Store.create({
       ...dto,
+      ward_code: null,
+      ward_name: wardName,
       address: fullAddress,
       district: '',
       province_code: '14',
@@ -114,17 +116,21 @@ export const storeService = {
 
   async update(id: number, dto: UpdateStoreDto) {
     const store = await this.getById(id);
-    const street = dto.street_address ?? store.street_address;
-    const wardCode = dto.ward_code ?? store.ward_code;
+    const street = dto.street_address ?? store.street_address ?? store.address;
+    let wardName =
+      dto.ward_name !== undefined ? normalizeWardName(dto.ward_name) : normalizeWardName(store.ward_name);
+    if (dto.ward_name === undefined && !wardName && store.ward_code) {
+      wardName = (await getWard(store.ward_code)).name_with_type;
+    }
     let addressFields = {};
-    if (street && wardCode && (dto.street_address || dto.ward_code)) {
-      const ward = await getWard(wardCode);
-      const fullAddress = `${street}, ${ward.name_with_type}, Tỉnh Sơn La`;
+    if (dto.street_address !== undefined || dto.ward_name !== undefined) {
+      const fullAddress = buildStoreAddress(street, wardName);
       addressFields = {
         address: fullAddress,
         full_address: fullAddress,
         province_code: '14',
         needs_review: false,
+        ...(dto.ward_name !== undefined ? { ward_code: null, ward_name: wardName } : {}),
       };
     }
     await store.update({
@@ -140,6 +146,14 @@ export const storeService = {
     await store.update({ status: 'inactive' });
   },
 };
+
+function normalizeWardName(value: string | null | undefined): string | null {
+  return value?.trim() || null;
+}
+
+function buildStoreAddress(street: string | null | undefined, wardName: string | null): string {
+  return [street?.trim(), wardName, 'Tỉnh Sơn La'].filter(Boolean).join(', ');
+}
 
 async function getWard(code: string) {
   const rows = await sequelize.query<{ code: string; name_with_type: string }>(

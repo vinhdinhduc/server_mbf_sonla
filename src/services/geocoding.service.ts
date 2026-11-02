@@ -18,8 +18,7 @@ export const nominatimProvider: GeocodingProvider = {
     if (process.env.NODE_ENV === 'production' && !process.env.GEOCODING_SEARCH_URL) {
       throw new AppError('Chưa cấu hình nhà cung cấp tìm vị trí cho môi trường production', 503);
     }
-    const userAgent = process.env.GEOCODING_USER_AGENT;
-    if (!userAgent) throw new AppError('Chưa cấu hình GEOCODING_USER_AGENT', 503);
+    const userAgent = process.env.GEOCODING_USER_AGENT || 'MobiFoneSonLaWebsite/1.0';
     const endpoint =
       process.env.GEOCODING_SEARCH_URL || 'https://nominatim.openstreetmap.org/search';
     const key = `${endpoint}:${address.trim().toLocaleLowerCase('vi-VN')}`;

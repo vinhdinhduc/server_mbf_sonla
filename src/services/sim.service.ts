@@ -1,6 +1,8 @@
 import { SIM_IMPORT_HEADERS, resolveSimImportHeader } from './sim-import-columns';
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 import { createHash } from 'crypto';
+import path from 'path';
 import { InferCreationAttributes, Op } from 'sequelize';
 import { z } from 'zod';
 import { sequelize } from '../config/database';
@@ -63,6 +65,71 @@ const IMPORT_VALUE_LABELS: Record<string, string> = {
   available: 'Đang bán', reserved: 'Đang giữ', sold: 'Đã bán', hidden: 'Ẩn',
 };
 const viValues = (values: string[]) => values.map((value) => IMPORT_VALUE_LABELS[value] ?? value).join(', ');
+
+function getRelationshipAttribute(tag: string, name: string): string | undefined {
+  return tag.match(new RegExp(`(?:^|\\s)${name}=(["'])(.*?)\\1`))?.[2];
+}
+
+function resolveRelationshipPath(relsPath: string, target: string): string {
+  const resolved = target.startsWith('/')
+    ? path.posix.normalize(target)
+    : path.posix.normalize(`${relsPath.replace(/\/_rels\/[^/]+$/, '')}/${target}`);
+  return resolved.replace(/^\/+/, '');
+}
+
+async function removeWorkbookAnnotations(buffer: Buffer): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(buffer);
+  const relsPaths = Object.keys(zip.files).filter((name) =>
+    /^xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(name),
+  );
+  const changed = await Promise.all(
+    relsPaths.map(async (relsPath) => {
+      const relsFile = zip.file(relsPath);
+      if (!relsFile) return false;
+
+      const relsXml = await relsFile.async('string');
+      const removedRelationshipIds = new Set<string>();
+      let hasAnnotations = false;
+      const updatedRelsXml = relsXml.replace(/<Relationship\b[^>]*\/>/g, (tag) => {
+        const type = getRelationshipAttribute(tag, 'Type');
+        if (!type?.endsWith('/comments') && !type?.endsWith('/vmlDrawing')) return tag;
+
+        hasAnnotations = true;
+        const id = getRelationshipAttribute(tag, 'Id');
+        if (id) removedRelationshipIds.add(id);
+        const target = getRelationshipAttribute(tag, 'Target');
+        if (target) {
+            const targetPath = resolveRelationshipPath(relsPath, target);
+            if (targetPath.startsWith('xl/')) zip.remove(targetPath);
+        }
+        return '';
+      });
+
+      if (!hasAnnotations) return false;
+
+      const sheetPath = relsPath.replace('/_rels/', '/').replace(/\.rels$/, '');
+      const sheetFile = zip.file(sheetPath);
+      if (sheetFile) {
+        const sheetXml = await sheetFile.async('string');
+        const updatedSheetXml = sheetXml.replace(/<legacyDrawing\b[^>]*\/>/g, (tag) => {
+            const id = getRelationshipAttribute(tag, 'r:id');
+            return id && removedRelationshipIds.has(id) ? '' : tag;
+        });
+        if (updatedSheetXml !== sheetXml) zip.file(sheetPath, updatedSheetXml);
+      }
+
+      if (updatedRelsXml !== relsXml) zip.file(relsPath, updatedRelsXml);
+      return true;
+    }),
+  );
+
+  if (!changed.some(Boolean)) return buffer;
+  return zip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 1 },
+  });
+}
 
 export const simService = {
   async listPublic(
@@ -315,7 +382,10 @@ export const simService = {
   ): Promise<ImportResult | ImportPreview> {
     const workbook = new ExcelJS.Workbook();
     try {
-      await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+      const importBuffer = await removeWorkbookAnnotations(buffer);
+      await workbook.xlsx.load(
+        importBuffer as unknown as Parameters<typeof workbook.xlsx.load>[0],
+      );
     } catch {
       throw AppError.badRequest('Không đọc được file Excel. Hãy mở file bằng Excel và lưu lại định dạng .xlsx, sau đó thử import lại.');
     }

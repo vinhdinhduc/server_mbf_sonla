@@ -28,6 +28,8 @@ export class Store extends Model<InferAttributes<Store>, InferCreationAttributes
 
   declare ward_code: CreationOptional<string | null>;
 
+  declare ward_name: CreationOptional<string | null>;
+
   declare street_address: CreationOptional<string | null>;
 
   declare full_address: CreationOptional<string | null>;
@@ -62,6 +64,7 @@ export function initStoreModel(sequelize: Sequelize): typeof Store {
       opening_hours: { type: DataTypes.STRING(100), allowNull: true },
       province_code: { type: DataTypes.STRING(2), allowNull: true },
       ward_code: { type: DataTypes.STRING(5), allowNull: true },
+      ward_name: { type: DataTypes.STRING(120), allowNull: true },
       street_address: { type: DataTypes.STRING(255), allowNull: true },
       full_address: { type: DataTypes.STRING(500), allowNull: true },
       email: { type: DataTypes.STRING(150), allowNull: true },

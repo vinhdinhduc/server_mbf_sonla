@@ -3,7 +3,7 @@ const originalEnvironment = { ...process.env };
 describe('BTS geocoding provider', () => {
   beforeEach(() => {
     jest.resetModules();
-    process.env.GEOCODING_USER_AGENT = 'BTS-test/1.0 (test@example.com)';
+    process.env.GEOCODING_USER_AGENT = 'MobiFoneSonLa-test/1.0';
     process.env.NODE_ENV = 'test';
     delete process.env.GEOCODING_SEARCH_URL;
   });
@@ -25,6 +25,20 @@ describe('BTS geocoding provider', () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain('https://geocoder.example.com/search?');
     expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
       'User-Agent': process.env.GEOCODING_USER_AGENT,
+    });
+  });
+
+  it('uses an identifiable default User-Agent when no override is configured', async () => {
+    delete process.env.GEOCODING_USER_AGENT;
+    process.env.GEOCODING_SEARCH_URL = 'https://geocoder.example.com/search';
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('[]', { status: 200 }));
+    const { nominatimProvider } = await import('../../src/services/geocoding.service');
+
+    await expect(nominatimProvider.search('Sơn La')).resolves.toBeNull();
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
+      'User-Agent': 'MobiFoneSonLaWebsite/1.0',
     });
   });
 

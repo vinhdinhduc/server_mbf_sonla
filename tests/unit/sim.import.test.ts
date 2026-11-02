@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 import { SimNumber } from '../../src/models/SimNumber.model';
 import { sequelize } from '../../src/config/database';
 import { simService } from '../../src/services/sim.service';
@@ -55,6 +56,53 @@ describe('M04 TC-09 - xem trước import', () => {
     expect(mockedSim.bulkCreate).toHaveBeenCalledTimes(1);
     expect(mockedSim.bulkCreate.mock.calls[0][0] as unknown[]).toHaveLength(990);
   });
+
+  it('nhập được file Excel có comments dùng đường dẫn tuyệt đối và VML lồng thư mục', async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Kho sim');
+    sheet.addRow([
+      'phone_number',
+      'subscription_type',
+      'catalog',
+      'sim_type',
+      'committed_monthly_fee',
+      'bundle_note',
+      'commitment_months',
+      'status',
+    ]);
+    sheet.addRow(['0901234567', 'postpaid', 'so_dep', 'thuong', 150000, '', 24, 'available']);
+    sheet.getCell('E1').note = 'Ghi chú mẫu';
+    const generatedBuffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    const zip = await JSZip.loadAsync(generatedBuffer);
+    const relsFile = zip.file('xl/worksheets/_rels/sheet1.xml.rels');
+    const commentsFile = zip.file('xl/comments1.xml');
+    const vmlFile = zip.file('xl/drawings/vmlDrawing1.vml');
+    expect(relsFile).toBeTruthy();
+    expect(commentsFile).toBeTruthy();
+    expect(vmlFile).toBeTruthy();
+
+    let relsXml = await relsFile!.async('string');
+    relsXml = relsXml
+      .replace('Target="../comments1.xml"', 'Target="/xl/comments/comment1.xml"')
+      .replace('Target="../drawings/vmlDrawing1.vml"', 'Target="/xl/drawings/commentsDrawing1.vml"');
+    zip.file('xl/worksheets/_rels/sheet1.xml.rels', relsXml);
+    zip.file('xl/comments/comment1.xml', await commentsFile!.async('nodebuffer'));
+    zip.file('xl/drawings/commentsDrawing1.vml', await vmlFile!.async('nodebuffer'));
+    zip.remove('xl/comments1.xml');
+    zip.remove('xl/drawings/vmlDrawing1.vml');
+
+    const result = await simService.importFromExcel(
+      await zip.generateAsync({ type: 'nodebuffer' }),
+      'skip',
+    );
+
+    expect(result).toMatchObject({ inserted: 1, skipped: 0 });
+    expect(mockedSim.bulkCreate.mock.calls[0][0][0]).toMatchObject({
+      phone_number: '0901234567',
+      committed_monthly_fee: 150000,
+    });
+  });
+
   it('mẫu mới lưu đúng cước và số tháng, có chú thích và không có cột giá cũ', async () => {
     const buffer = await simService.createImportTemplate();
     const workbook = new ExcelJS.Workbook();
