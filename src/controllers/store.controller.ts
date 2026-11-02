@@ -11,6 +11,8 @@ import { nominatimProvider } from '../services/geocoding.service';
 
 export const storeController = {
   async listPublic(req: Request, res: Response) {
+
+    //Check ward_code
     const query = listStoreQuerySchema.parse(req.query);
     const rows = await storeService.listPublic(query.ward_code);
     sendSuccess(res, rows);
