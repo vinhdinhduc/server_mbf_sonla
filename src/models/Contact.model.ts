@@ -11,6 +11,9 @@ export type ContactStatus = 'moi' | 'dang_xu_ly' | 'da_phan_hoi';
 
 export class Contact extends Model<InferAttributes<Contact>, InferCreationAttributes<Contact>> {
   declare id: CreationOptional<number>;
+
+  declare deleted_at: CreationOptional<Date | null>;
+
   declare agreed_terms_at: CreationOptional<Date | null>;
   declare agreed_terms_version: CreationOptional<string | null>;
 
@@ -47,6 +50,7 @@ export function initContactModel(sequelize: Sequelize): typeof Contact {
       agreed_terms_at: { type: DataTypes.DATE, allowNull: true },
       agreed_terms_version: { type: DataTypes.STRING(20), allowNull: true },
       id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+      deleted_at: { type: DataTypes.DATE, allowNull: true },
       name: { type: DataTypes.STRING(100), allowNull: false },
       phone: { type: DataTypes.STRING(20), allowNull: false },
       email: { type: DataTypes.STRING(100), allowNull: false },
@@ -72,6 +76,8 @@ export function initContactModel(sequelize: Sequelize): typeof Contact {
       timestamps: true,
       createdAt: 'created_at',
       updatedAt: false,
+      paranoid: true,
+      deletedAt: 'deleted_at',
     },
   );
   return Contact;

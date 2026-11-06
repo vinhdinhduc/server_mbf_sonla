@@ -21,15 +21,19 @@ import { AuditLog } from '../models/AuditLog.model';
 export const simController = {
   async listPublic(req: Request, res: Response) {
     const query = listSimQuerySchema.parse(req.query);
-    const rows = await simService.listPublic(
+    const result = await simService.listPublic(
       query.q,
       query.prefix,
       query.catalog,
       query.sim_type,
       query.price_range,
       query.type,
+      query.page,
+      query.page_size,
+      query.element,
+      query.fit_element,
     );
-    sendSuccess(res, rows);
+    sendSuccess(res, result);
   },
 
   async getPublicById(req: Request, res: Response) {

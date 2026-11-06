@@ -29,7 +29,7 @@ export const createSimSchema = z.object({
 
 export const updateSimSchema = createSimSchema.partial();
 
-export const listSimQuerySchema = z.object({
+const listSimQueryFields = z.object({
   q: z
     .string()
     .trim()
@@ -40,8 +40,21 @@ export const listSimQuerySchema = z.object({
   catalog: simCatalogEnum.optional(),
   sim_type: simTypeEnum.optional(),
   price_range: z.string().optional(), // vd "0-500000"
-  type: subscriptionTypeEnum.default('postpaid'),
+  type: z.union([subscriptionTypeEnum, z.literal('all')]).default('postpaid'),
+  element: z.enum(['Kim', 'Mộc', 'Thủy', 'Hỏa', 'Thổ']).optional(),
+  fit_element: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
+  page: z.coerce.number().int().positive().default(1),
+  page_size: z.coerce.number().int().positive().max(50).default(20),
 });
+
+export const listSimQuerySchema = z.preprocess((value) => {
+  if (!value || typeof value !== 'object') return value;
+  const query = value as Record<string, unknown>;
+  return { ...query, page_size: query.pageSize ?? query.page_size };
+}, listSimQueryFields);
 
 export const listAdminSimQuerySchema = z.object({
   q: z

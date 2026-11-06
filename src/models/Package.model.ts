@@ -53,6 +53,8 @@ export class Package extends Model<InferAttributes<Package>, InferCreationAttrib
   declare conditions: CreationOptional<string | null>;
   declare audience: CreationOptional<string | null>;
   declare sms_syntax: CreationOptional<string | null>;
+  declare registerSyntax: CreationOptional<string | null>;
+  declare registerShortcode: CreationOptional<string | null>;
   declare image_url: CreationOptional<string | null>;
   declare effective_from: CreationOptional<Date | null>;
   declare effective_to: CreationOptional<Date | null>;
@@ -95,6 +97,8 @@ export function initPackageModel(sequelize: Sequelize): typeof Package {
       conditions: { type: DataTypes.TEXT, allowNull: true },
       audience: { type: DataTypes.STRING(255), allowNull: true },
       sms_syntax: { type: DataTypes.STRING(255), allowNull: true },
+      registerSyntax: { type: DataTypes.STRING(255), allowNull: true, field: 'register_syntax' },
+      registerShortcode: { type: DataTypes.STRING(20), allowNull: true, field: 'register_shortcode' },
       image_url: { type: DataTypes.STRING(255), allowNull: true },
       effective_from: { type: DataTypes.DATE, allowNull: true },
       effective_to: { type: DataTypes.DATE, allowNull: true },

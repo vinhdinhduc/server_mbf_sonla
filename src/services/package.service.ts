@@ -46,6 +46,7 @@ export const packageService = {
   },
 
   async create(dto: CreatePackageDto) {
+    this.validateRegistrationSyntax(dto.status, dto.registerSyntax, dto.registerShortcode);
     const existing = await Package.findOne({ where: { code: dto.code } });
     if (existing) throw AppError.badRequest('Mã gói cước đã tồn tại');
     return Package.create(dto);
@@ -53,6 +54,11 @@ export const packageService = {
 
   async update(id: number, dto: UpdatePackageDto) {
     const pkg = await this.getById(id);
+    this.validateRegistrationSyntax(
+      dto.status ?? pkg.status,
+      dto.registerSyntax !== undefined ? dto.registerSyntax : pkg.registerSyntax,
+      dto.registerShortcode !== undefined ? dto.registerShortcode : pkg.registerShortcode,
+    );
     if (dto.code && dto.code !== pkg.code) {
       const existing = await Package.findOne({ where: { code: dto.code, id: { [Op.ne]: id } } });
       if (existing) throw AppError.badRequest('Mã gói cước đã tồn tại');
@@ -73,5 +79,15 @@ export const packageService = {
         `Gói này có ${references} đăng ký. Chuyển sang Ngừng bán để giữ lịch sử đăng ký.`,
       );
     await pkg.update({ status: 'inactive', deleted_at: new Date() });
+  },
+
+  validateRegistrationSyntax(
+    status: string | undefined,
+    registerSyntax: string | null | undefined,
+    registerShortcode: string | null | undefined,
+  ) {
+    if (status === 'active' && (!registerSyntax?.trim() || !registerShortcode?.trim())) {
+      throw AppError.badRequest('Gói đang bán cần có cú pháp đăng ký và số tổng đài');
+    }
   },
 };

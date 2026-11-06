@@ -17,6 +17,9 @@ export class StoreAppointment extends Model<
   InferCreationAttributes<StoreAppointment>
 > {
   declare id: CreationOptional<number>;
+
+  declare deleted_at: CreationOptional<Date | null>;
+
   declare agreed_terms_at: CreationOptional<Date | null>;
   declare agreed_terms_version: CreationOptional<string | null>;
 
@@ -57,6 +60,7 @@ export function initStoreAppointmentModel(sequelize: Sequelize): typeof StoreApp
       agreed_terms_at: { type: DataTypes.DATE, allowNull: true },
       agreed_terms_version: { type: DataTypes.STRING(20), allowNull: true },
       id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+      deleted_at: { type: DataTypes.DATE, allowNull: true },
       customer_name: { type: DataTypes.STRING(100), allowNull: false },
       phone: { type: DataTypes.STRING(20), allowNull: false },
       email: { type: DataTypes.STRING(150), allowNull: true },
@@ -82,6 +86,8 @@ export function initStoreAppointmentModel(sequelize: Sequelize): typeof StoreApp
       timestamps: true,
       createdAt: 'created_at',
       updatedAt: false,
+      paranoid: true,
+      deletedAt: 'deleted_at',
     },
   );
   return StoreAppointment;

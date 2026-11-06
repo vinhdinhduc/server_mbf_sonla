@@ -72,4 +72,12 @@ export const contactService = {
     await contact.update(dto);
     return contact;
   },
+
+  async remove(id: number) {
+    const contact = await Contact.findByPk(id);
+    if (!contact) throw AppError.notFound('Không tìm thấy liên hệ');
+    const previous = { code: contact.code, status: contact.status };
+    await contact.destroy();
+    return previous;
+  },
 };

@@ -66,16 +66,16 @@ export const dashboardService = {
       rows("SELECT DATE(CONVERT_TZ(subscribed_at,'+00:00','+07:00')) AS date, COUNT(*) AS value FROM newsletter_subscribers WHERE status='subscribed' AND DATE(CONVERT_TZ(subscribed_at,'+00:00','+07:00')) BETWEEN :previousFrom AND :previousTo GROUP BY date", p),
     ]);
     const active = contentOnly ? [] : await Promise.all([
-      rows(`SELECT DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) AS date, status, COUNT(*) AS value FROM registration_groups WHERE DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) BETWEEN :from AND :to${regScope} GROUP BY date,status`, p),
-      rows(`SELECT DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) AS date, status, COUNT(*) AS value FROM registration_groups WHERE DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) BETWEEN :previousFrom AND :previousTo${regScope} GROUP BY date,status`, p),
-      isTeller || isStaff ? Promise.resolve([]) : rows("SELECT DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) AS date, status, COUNT(*) AS value FROM contact_messages WHERE DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) BETWEEN :from AND :to GROUP BY date,status", p),
-      rows(`SELECT appointment_date AS date, status, COUNT(*) AS value FROM store_appointments WHERE appointment_date BETWEEN :from AND :to${appointmentScope} GROUP BY date,status`, p),
-      rows(`SELECT store_id AS label, COUNT(*) AS value FROM store_appointments WHERE appointment_date BETWEEN :from AND :to${appointmentScope} GROUP BY store_id ORDER BY value DESC LIMIT 10`, p),
+      rows(`SELECT DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) AS date, status, COUNT(*) AS value FROM registration_groups WHERE deleted_at IS NULL AND DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) BETWEEN :from AND :to${regScope} GROUP BY date,status`, p),
+      rows(`SELECT DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) AS date, status, COUNT(*) AS value FROM registration_groups WHERE deleted_at IS NULL AND DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) BETWEEN :previousFrom AND :previousTo${regScope} GROUP BY date,status`, p),
+      isTeller || isStaff ? Promise.resolve([]) : rows("SELECT DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) AS date, status, COUNT(*) AS value FROM contact_messages WHERE deleted_at IS NULL AND DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) BETWEEN :from AND :to GROUP BY date,status", p),
+      rows(`SELECT appointment_date AS date, status, COUNT(*) AS value FROM store_appointments WHERE deleted_at IS NULL AND appointment_date BETWEEN :from AND :to${appointmentScope} GROUP BY date,status`, p),
+      rows(`SELECT store_id AS label, COUNT(*) AS value FROM store_appointments WHERE deleted_at IS NULL AND appointment_date BETWEEN :from AND :to${appointmentScope} GROUP BY store_id ORDER BY value DESC LIMIT 10`, p),
       rows("SELECT status, subscription_type, COUNT(*) AS value FROM sim_numbers GROUP BY status,subscription_type", p),
       rows("SELECT sim_type AS label, COUNT(*) AS value FROM sim_numbers WHERE status='sold' GROUP BY sim_type ORDER BY value DESC", p),
-      rows(`SELECT ri.type AS label, COUNT(*) AS value FROM registration_items ri JOIN registration_groups rg ON rg.id=ri.registration_group_id WHERE DATE(CONVERT_TZ(rg.created_at,'+00:00','+07:00')) BETWEEN :from AND :to${regScope.replace(/delivery_/g, 'rg.delivery_').replace('assigned_to', 'rg.assigned_to')} GROUP BY ri.type ORDER BY value DESC LIMIT 5`, p),
-      isTeller || isStaff ? Promise.resolve([]) : rows("SELECT status, COUNT(*) AS value FROM contact_messages WHERE DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) BETWEEN :previousFrom AND :previousTo GROUP BY status", p),
-      rows(`SELECT status, COUNT(*) AS value FROM store_appointments WHERE appointment_date BETWEEN :previousFrom AND :previousTo${appointmentScope} GROUP BY status`, p),
+      rows(`SELECT ri.type AS label, COUNT(*) AS value FROM registration_items ri JOIN registration_groups rg ON rg.id=ri.registration_group_id WHERE rg.deleted_at IS NULL AND DATE(CONVERT_TZ(rg.created_at,'+00:00','+07:00')) BETWEEN :from AND :to${regScope.replace(/delivery_/g, 'rg.delivery_').replace('assigned_to', 'rg.assigned_to')} GROUP BY ri.type ORDER BY value DESC LIMIT 5`, p),
+      isTeller || isStaff ? Promise.resolve([]) : rows("SELECT status, COUNT(*) AS value FROM contact_messages WHERE deleted_at IS NULL AND DATE(CONVERT_TZ(created_at,'+00:00','+07:00')) BETWEEN :previousFrom AND :previousTo GROUP BY status", p),
+      rows(`SELECT status, COUNT(*) AS value FROM store_appointments WHERE deleted_at IS NULL AND appointment_date BETWEEN :previousFrom AND :previousTo${appointmentScope} GROUP BY status`, p),
     ]);
     const [registrations = [], previous = [], contacts = [], appointments = [], stores = [], inventory = [], sold = [], products = [], previousContacts = [], previousAppointments = []] = active;
     const byDay = (data: Row[], status?: string) => fillDateSeries(dates, data.filter((r) => !status || r.status === status).map((r) => ({ date: String(r.date), value: Number(r.value) })));
@@ -106,8 +106,8 @@ export const dashboardService = {
       { title: 'Lịch hẹn theo ngày', kind: 'line', data: byDay(appointments) },
     ];
     const urgency = contentOnly ? [] : await Promise.all([
-      rows(`SELECT COUNT(*) AS value FROM registration_groups WHERE status='moi' AND created_at < :overdueBefore${regScope}`, { ...p, overdueBefore: new Date(Date.now() - 86400000) }),
-      isTeller || isStaff ? Promise.resolve([]) : rows("SELECT COUNT(*) AS value FROM contact_messages WHERE status='moi' AND created_at < :overdueBefore", { ...p, overdueBefore: new Date(Date.now() - 86400000) }),
+      rows(`SELECT COUNT(*) AS value FROM registration_groups WHERE deleted_at IS NULL AND status='moi' AND created_at < :overdueBefore${regScope}`, { ...p, overdueBefore: new Date(Date.now() - 86400000) }),
+      isTeller || isStaff ? Promise.resolve([]) : rows("SELECT COUNT(*) AS value FROM contact_messages WHERE deleted_at IS NULL AND status='moi' AND created_at < :overdueBefore", { ...p, overdueBefore: new Date(Date.now() - 86400000) }),
       isTeller || isStaff ? Promise.resolve([]) : rows("SELECT COUNT(*) AS value FROM sim_numbers WHERE status='reserved' AND reserved_until < :now", { ...p, now: new Date() }),
     ]);
     const urgent = contentOnly ? [] : [

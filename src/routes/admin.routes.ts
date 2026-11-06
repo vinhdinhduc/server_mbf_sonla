@@ -32,6 +32,7 @@ import { aiController } from '../controllers/ai.controller';
 import { dashboardController } from '../controllers/dashboard.controller';
 import { rateLimitController } from '../controllers/rateLimit.controller';
 import { emailController } from '../controllers/email.controller';
+import { trashController } from '../controllers/trash.controller';
 import { sendSuccess } from '../utils/apiResponse';
 import { AppError } from '../utils/AppError';
 
@@ -590,6 +591,12 @@ router.patch(
   auditLogger('registration_groups', 'update'),
   asyncHandler(registrationController.updateStatus),
 );
+router.delete(
+  '/registration-groups/:id',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('registration_groups', 'delete'),
+  asyncHandler(registrationController.remove),
+);
 
 router.get('/contacts', checkRole([...REGISTRATION_ROLES]), asyncHandler(contactController.list));
 router.patch(
@@ -597,6 +604,12 @@ router.patch(
   checkRole([...REGISTRATION_ROLES]),
   auditLogger('contacts', 'update'),
   asyncHandler(contactController.updateStatus),
+);
+router.delete(
+  '/contacts/:id',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('contacts', 'delete'),
+  asyncHandler(contactController.remove),
 );
 
 router.get(
@@ -610,6 +623,12 @@ router.patch(
   auditLogger('store_appointments', 'update'),
   asyncHandler(appointmentController.updateStatus),
 );
+router.delete(
+  '/appointments/:id',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('store_appointments', 'delete'),
+  asyncHandler(appointmentController.remove),
+);
 
 // ============== Settings - chi admin ==============
 router.get('/settings', checkRole([...ADMIN_ONLY]), asyncHandler(settingController.listAdmin));
@@ -622,5 +641,24 @@ router.put(
 
 // ============== Audit log - chi admin, CHI DOC ==============
 router.get('/audit-logs', checkRole([...ADMIN_ONLY]), asyncHandler(auditLogController.list));
+router.get('/trash', checkRole([...ADMIN_ONLY]), asyncHandler(trashController.list));
+router.delete(
+  '/trash/:type/bulk-delete',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('trash', 'delete'),
+  asyncHandler(trashController.softDeleteMany),
+);
+router.post(
+  '/trash/:type/:id/restore',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('trash', 'update'),
+  asyncHandler(trashController.restore),
+);
+router.delete(
+  '/trash/:type/:id',
+  checkRole([...ADMIN_ONLY]),
+  auditLogger('trash', 'delete'),
+  asyncHandler(trashController.permanentlyRemove),
+);
 
 export default router;

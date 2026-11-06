@@ -8,9 +8,11 @@ import {
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
 import { verifyRecaptcha } from '../utils/verifyRecaptcha';
 import { AppError } from '../utils/AppError';
+import { authService } from '../services/auth.service';
 import { receiptService } from '../services/receipt.service';
 import { RegistrationGroup } from '../models/RegistrationGroup.model';
 import { maskPhone } from '../utils/registrationWorkflow';
+import { confirmDeleteSchema } from '../validators/confirmDelete.validator';
 
 export const registrationController = {
   async submit(req: Request, res: Response) {
@@ -81,5 +83,20 @@ export const registrationController = {
       newValue: dto,
     };
     sendSuccess(res, group, 'Cập nhật trạng thái thành công');
+  },
+
+  async remove(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    const dto = confirmDeleteSchema.parse(req.body);
+    if (!req.user?.id) throw AppError.unauthorized();
+    await authService.verifyPassword(req.user.id, dto.password);
+    const previous = await registrationService.remove(id);
+    req.auditContext = {
+      module: 'registration_groups',
+      action: 'delete',
+      targetId: id,
+      oldValue: previous,
+    };
+    sendSuccess(res, null, 'Đã xóa mềm đăng ký');
   },
 };

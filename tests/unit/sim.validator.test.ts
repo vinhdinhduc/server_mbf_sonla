@@ -15,6 +15,37 @@ describe('sim.validator', () => {
     });
   });
 
+  it('chấp nhận tham số phân trang, tất cả thuê bao và mệnh phong thủy', () => {
+    expect(
+      listSimQuerySchema.parse({
+        catalog: 'phong_thuy',
+        type: 'all',
+        element: 'Mộc',
+        fit_element: 'true',
+        page: '2',
+        page_size: '12',
+      }),
+    ).toMatchObject({
+      catalog: 'phong_thuy',
+      type: 'all',
+      element: 'Mộc',
+      fit_element: true,
+      page: 2,
+      page_size: 12,
+    });
+    expect(() => listSimQuerySchema.parse({ page: 0 })).toThrow();
+    expect(() => listSimQuerySchema.parse({ page_size: 51 })).toThrow();
+  });
+
+  it('chuẩn hóa pageSize cho phân trang API công khai', () => {
+    expect(listSimQuerySchema.parse({ page: '3', pageSize: '50' })).toMatchObject({
+      page: 3,
+      page_size: 50,
+    });
+    expect(listSimQuerySchema.parse({})).toMatchObject({ page: 1, page_size: 20 });
+    expect(() => listSimQuerySchema.parse({ pageSize: 51 })).toThrow();
+  });
+
   it('từ chối chuỗi tìm kiếm có ký tự SQL', () => {
     expect(() => listSimQuerySchema.parse({ q: "090*'; DROP" })).toThrow();
   });

@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import { sendCreated, sendSuccess } from '../utils/apiResponse';
 import { appointmentService } from '../services/appointment.service';
+import { authService } from '../services/auth.service';
+import { AppError } from '../utils/AppError';
+import { confirmDeleteSchema } from '../validators/confirmDelete.validator';
 import {
   createAppointmentSchema,
   appointmentTokenSchema,
@@ -60,5 +63,20 @@ export const appointmentController = {
       newValue: dto,
     };
     sendSuccess(res, appointment, 'Cập nhật lịch hẹn thành công');
+  },
+
+  async remove(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    const dto = confirmDeleteSchema.parse(req.body);
+    if (!req.user?.id) throw AppError.unauthorized();
+    await authService.verifyPassword(req.user.id, dto.password);
+    const previous = await appointmentService.remove(id);
+    req.auditContext = {
+      module: 'store_appointments',
+      action: 'delete',
+      targetId: id,
+      oldValue: previous,
+    };
+    sendSuccess(res, null, 'Đã xóa mềm lịch hẹn');
   },
 };

@@ -30,6 +30,8 @@ export const createPackageSchema = z.object({
   conditions: z.string().optional().nullable(),
   audience: z.string().max(255).optional().nullable(),
   sms_syntax: z.string().max(255).optional().nullable(),
+  registerSyntax: z.string().max(255).optional().nullable(),
+  registerShortcode: z.string().max(20).optional().nullable(),
   image_url: z.string().max(255).optional().nullable(),
   effective_from: z.coerce.date().optional().nullable(),
   effective_to: z.coerce.date().optional().nullable(),

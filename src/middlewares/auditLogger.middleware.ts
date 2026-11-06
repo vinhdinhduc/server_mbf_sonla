@@ -24,17 +24,23 @@ export function auditLogger(module: string, action: AuditAction) {
         const ctx = req.auditContext;
         const targetIdFromParams = req.params?.id ? Number(req.params.id) : undefined;
         const targetIdFromBody = body?.data?.id !== undefined ? Number(body.data.id) : undefined;
-
-        AuditLog.create({
-          user_id: req.user?.id ?? null,
-          action,
-          module,
-          target_id: ctx?.targetId ?? targetIdFromParams ?? targetIdFromBody ?? null,
-          description: ctx?.description ?? `${action} ${module}`,
-          old_value: (ctx?.oldValue as Record<string, unknown>) ?? null,
-          new_value: (ctx?.newValue as Record<string, unknown>) ?? null,
-          ip_address: req.ip ?? null,
-        }).catch((err) => {
+        const targetIds = ctx?.targetIds;
+        const entries = targetIds?.length ? targetIds : [undefined];
+        Promise.all(
+          entries.map((targetId) =>
+            AuditLog.create({
+              user_id: req.user?.id ?? null,
+              action: ctx?.action ?? action,
+              module: ctx?.module ?? module,
+              target_id:
+                targetId ?? ctx?.targetId ?? targetIdFromParams ?? targetIdFromBody ?? null,
+              description: ctx?.description ?? `${action} ${module}`,
+              old_value: (ctx?.oldValue as Record<string, unknown>) ?? null,
+              new_value: (ctx?.newValue as Record<string, unknown>) ?? null,
+              ip_address: req.ip ?? null,
+            }),
+          ),
+        ).catch((err) => {
           // Khong lam gian doan response cua client neu ghi log that bai
           // eslint-disable-next-line no-console
           console.error('Ghi audit log that bai:', err);

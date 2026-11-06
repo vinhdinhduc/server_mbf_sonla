@@ -16,6 +16,7 @@ declare global {
         module: string;
         action: 'create' | 'update' | 'delete' | 'login' | 'logout' | 'export';
         targetId?: number;
+        targetIds?: number[];
         description?: string;
         oldValue?: unknown;
         newValue?: unknown;

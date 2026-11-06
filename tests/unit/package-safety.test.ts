@@ -47,3 +47,15 @@ test('price updates audit both old and new values', async () => {
     }),
   );
 });
+
+test('active packages require registration syntax and a shortcode', () => {
+  expect(() => packageService.validateRegistrationSyntax('active', '', '999')).toThrow(
+    'Gói đang bán cần có cú pháp đăng ký',
+  );
+  expect(() => packageService.validateRegistrationSyntax('active', 'MXH100', null)).toThrow(
+    'Gói đang bán cần có cú pháp đăng ký',
+  );
+  expect(() =>
+    packageService.validateRegistrationSyntax('inactive', null, null),
+  ).not.toThrow();
+});

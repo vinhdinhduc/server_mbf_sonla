@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import { createHash } from 'crypto';
 import path from 'path';
-import { InferCreationAttributes, Op } from 'sequelize';
+import { InferCreationAttributes, literal, Op } from 'sequelize';
 import { z } from 'zod';
 import { sequelize } from '../config/database';
 import {
@@ -59,12 +59,26 @@ const VALID_SIM_TYPES: SimType[] = ['tam_hoa', 'tu_quy', 'phat_loc', 'than_tai',
 const VALID_STATUSES: SimStatus[] = ['available', 'reserved', 'sold', 'hidden'];
 const VALID_SUBSCRIPTION_TYPES: SubscriptionType[] = ['prepaid', 'postpaid'];
 const IMPORT_VALUE_LABELS: Record<string, string> = {
-  prepaid: 'Trả trước', postpaid: 'Trả sau', so_dep: 'Số đẹp', phong_thuy: 'Phong thủy',
-  nam_sinh: 'Năm sinh', tra_truoc: 'Trả trước', sim_data: 'SIM data', esim: 'eSIM',
-  tam_hoa: 'Tam hoa', tu_quy: 'Tứ quý', phat_loc: 'Phát lộc', than_tai: 'Thần tài', thuong: 'Thông thường',
-  available: 'Đang bán', reserved: 'Đang giữ', sold: 'Đã bán', hidden: 'Ẩn',
+  prepaid: 'Trả trước',
+  postpaid: 'Trả sau',
+  so_dep: 'Số đẹp',
+  phong_thuy: 'Phong thủy',
+  nam_sinh: 'Năm sinh',
+  tra_truoc: 'Trả trước',
+  sim_data: 'SIM data',
+  esim: 'eSIM',
+  tam_hoa: 'Tam hoa',
+  tu_quy: 'Tứ quý',
+  phat_loc: 'Phát lộc',
+  than_tai: 'Thần tài',
+  thuong: 'Thông thường',
+  available: 'Đang bán',
+  reserved: 'Đang giữ',
+  sold: 'Đã bán',
+  hidden: 'Ẩn',
 };
-const viValues = (values: string[]) => values.map((value) => IMPORT_VALUE_LABELS[value] ?? value).join(', ');
+const viValues = (values: string[]) =>
+  values.map((value) => IMPORT_VALUE_LABELS[value] ?? value).join(', ');
 
 function getRelationshipAttribute(tag: string, name: string): string | undefined {
   return tag.match(new RegExp(`(?:^|\\s)${name}=(["'])(.*?)\\1`))?.[2];
@@ -99,8 +113,8 @@ async function removeWorkbookAnnotations(buffer: Buffer): Promise<Buffer> {
         if (id) removedRelationshipIds.add(id);
         const target = getRelationshipAttribute(tag, 'Target');
         if (target) {
-            const targetPath = resolveRelationshipPath(relsPath, target);
-            if (targetPath.startsWith('xl/')) zip.remove(targetPath);
+          const targetPath = resolveRelationshipPath(relsPath, target);
+          if (targetPath.startsWith('xl/')) zip.remove(targetPath);
         }
         return '';
       });
@@ -112,8 +126,8 @@ async function removeWorkbookAnnotations(buffer: Buffer): Promise<Buffer> {
       if (sheetFile) {
         const sheetXml = await sheetFile.async('string');
         const updatedSheetXml = sheetXml.replace(/<legacyDrawing\b[^>]*\/>/g, (tag) => {
-            const id = getRelationshipAttribute(tag, 'r:id');
-            return id && removedRelationshipIds.has(id) ? '' : tag;
+          const id = getRelationshipAttribute(tag, 'r:id');
+          return id && removedRelationshipIds.has(id) ? '' : tag;
         });
         if (updatedSheetXml !== sheetXml) zip.file(sheetPath, updatedSheetXml);
       }
@@ -138,7 +152,11 @@ export const simService = {
     catalog: string | undefined,
     simType: string | undefined,
     priceRange: string | undefined,
-    subscriptionType: SubscriptionType,
+    subscriptionType: SubscriptionType | 'all',
+    page?: number,
+    pageSize?: number,
+    element?: 'Kim' | 'Mộc' | 'Thủy' | 'Hỏa' | 'Thổ',
+    fitElement?: boolean,
   ) {
     await SimNumber.update(
       { status: 'available', reserved_until: null, reserved_registration_id: null },
@@ -146,27 +164,104 @@ export const simService = {
     );
     const where: Record<string, unknown> = {
       status: 'available',
-      subscription_type: subscriptionType,
     };
+    if (subscriptionType !== 'all') where.subscription_type = subscriptionType;
+    const phoneNumberFilters: object[] = [];
     if (query) {
       const pattern = query.includes('*') ? query.replace(/\*/g, '%') : `%${query}%`;
-      where.phone_number = { [Op.like]: pattern };
+      phoneNumberFilters.push({ [Op.like]: pattern });
     }
     if (prefix) where.prefix = prefix;
     if (catalog) where.catalog = catalog;
     if (simType) where.sim_type = simType;
+    if (fitElement && element) {
+      const elementDigits = {
+        Kim: ['6', '7'],
+        Mộc: ['3', '4'],
+        Thủy: ['0', '1'],
+        Hỏa: ['9'],
+        Thổ: ['2', '5', '8'],
+      }[element];
+      phoneNumberFilters.push({
+        [Op.or]: elementDigits.map((digit) => ({ [Op.like]: `%${digit}` })),
+      });
+    }
+    if (phoneNumberFilters.length === 1) where.phone_number = phoneNumberFilters[0];
+    if (phoneNumberFilters.length > 1) where.phone_number = { [Op.and]: phoneNumberFilters };
     if (priceRange) {
       const [min, max] = priceRange.split('-').map(Number);
       if (!Number.isNaN(min) && !Number.isNaN(max)) {
         where.price = { [Op.between]: [min, max] };
       }
     }
-    const [rows, configuredFee] = await Promise.all([
-      SimNumber.findAll({ where, order: [['phone_number', 'ASC']] }),
-      settingService.getRawValue(`sim_activation_fee_${subscriptionType}`),
+    const effectivePage = page ?? 1;
+    const effectivePageSize = pageSize ?? 20;
+    const [result, configuredFee, commitmentCount] = await Promise.all([
+      SimNumber.findAndCountAll({
+        where,
+        order: [
+          ...(element
+            ? [
+                [
+                  literal(
+                    `CASE WHEN RIGHT(phone_number, 1) IN (${
+                      {
+                        Kim: "'6','7'",
+                        Mộc: "'3','4'",
+                        Thủy: "'0','1'",
+                        Hỏa: "'9'",
+                        Thổ: "'2','5','8'",
+                      }[element]
+                    }) THEN 0 ELSE 1 END`,
+                  ),
+                  'ASC',
+                ] as [ReturnType<typeof literal>, 'ASC'],
+              ]
+            : []),
+          ['phone_number', 'ASC'],
+        ],
+        limit: effectivePageSize,
+        offset: (effectivePage - 1) * effectivePageSize,
+      }),
+      subscriptionType === 'all'
+        ? Promise.all([
+            settingService.getRawValue('sim_activation_fee_prepaid'),
+            settingService.getRawValue('sim_activation_fee_postpaid'),
+          ])
+        : settingService.getRawValue(`sim_activation_fee_${subscriptionType}`),
+      SimNumber.count({
+        where: {
+          ...where,
+          [Op.or]: [
+            { commitment_months: { [Op.gt]: 0 } },
+            { committed_monthly_fee: { [Op.gt]: 0 } },
+          ],
+        },
+      }),
     ]);
-    const activationFee = Number(configuredFee ?? (subscriptionType === 'prepaid' ? 50000 : 60000));
-    return rows.map((row) => ({ ...row.toJSON(), activation_fee: activationFee }));
+    const rows = Array.isArray(result) ? result : result.rows;
+    const feePair = Array.isArray(configuredFee) ? configuredFee : null;
+    const singleFee = typeof configuredFee === 'string' ? configuredFee : null;
+    const items = rows.map((row) => {
+      const activationFee =
+        subscriptionType === 'all'
+          ? Number(
+              feePair?.[row.subscription_type === 'prepaid' ? 0 : 1] ??
+                (row.subscription_type === 'prepaid' ? 50000 : 60000),
+            )
+          : Number(singleFee ?? (subscriptionType === 'prepaid' ? 50000 : 60000));
+      return { ...row.toJSON(), activation_fee: activationFee };
+    });
+    const totalPages = Math.max(1, Math.ceil(result.count / effectivePageSize));
+    return {
+      items,
+      total: result.count,
+      totalPages,
+      page: effectivePage,
+      pageSize: effectivePageSize,
+      page_size: effectivePageSize,
+      hasCommitment: commitmentCount > 0,
+    };
   },
 
   async getPublicById(id: number) {
@@ -383,11 +478,11 @@ export const simService = {
     const workbook = new ExcelJS.Workbook();
     try {
       const importBuffer = await removeWorkbookAnnotations(buffer);
-      await workbook.xlsx.load(
-        importBuffer as unknown as Parameters<typeof workbook.xlsx.load>[0],
-      );
+      await workbook.xlsx.load(importBuffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
     } catch {
-      throw AppError.badRequest('Không đọc được file Excel. Hãy mở file bằng Excel và lưu lại định dạng .xlsx, sau đó thử import lại.');
+      throw AppError.badRequest(
+        'Không đọc được file Excel. Hãy mở file bằng Excel và lưu lại định dạng .xlsx, sau đó thử import lại.',
+      );
     }
     const sheet = workbook.worksheets[0];
     if (!sheet) throw AppError.badRequest('File Excel không có trang dữ liệu');
@@ -404,7 +499,9 @@ export const simService = {
     const requiredColumns = ['phone_number', 'subscription_type', 'catalog', 'sim_type'];
     const missingColumns = requiredColumns.filter((name) => !columns.has(name));
     if (missingColumns.length) {
-      throw AppError.badRequest(`Thiếu cột bắt buộc: ${missingColumns.join(', ')}. Tải mẫu import kho SIM để đối chiếu tên cột.`);
+      throw AppError.badRequest(
+        `Thiếu cột bắt buộc: ${missingColumns.join(', ')}. Tải mẫu import kho SIM để đối chiếu tên cột.`,
+      );
     }
 
     const errors: ImportRowError[] = [];
@@ -461,12 +558,18 @@ export const simService = {
         return;
       }
       if (!VALID_STATUSES.includes(statusRaw)) {
-        errors.push({ row: rowNumber, message: `Cột “${SIM_IMPORT_HEADERS.status}”: “${IMPORT_VALUE_LABELS[statusRaw] ?? statusRaw}” không hợp lệ. Chọn một trong: ${viValues(VALID_STATUSES)}.` });
+        errors.push({
+          row: rowNumber,
+          message: `Cột “${SIM_IMPORT_HEADERS.status}”: “${IMPORT_VALUE_LABELS[statusRaw] ?? statusRaw}” không hợp lệ. Chọn một trong: ${viValues(VALID_STATUSES)}.`,
+        });
         return;
       }
 
       if (!phoneNumber) {
-        errors.push({ row: rowNumber, message: `Cột “${SIM_IMPORT_HEADERS.phone_number}” đang để trống.` });
+        errors.push({
+          row: rowNumber,
+          message: `Cột “${SIM_IMPORT_HEADERS.phone_number}” đang để trống.`,
+        });
         return;
       }
       if (!/^0\d{9}$/.test(phoneNumber)) {
@@ -477,15 +580,24 @@ export const simService = {
         return;
       }
       if (!VALID_SUBSCRIPTION_TYPES.includes(subscriptionType)) {
-        errors.push({ row: rowNumber, message: `Cột “${SIM_IMPORT_HEADERS.subscription_type}”: “${subscriptionType || '(trống)'}” không hợp lệ. Chọn “Trả trước” hoặc “Trả sau”.` });
+        errors.push({
+          row: rowNumber,
+          message: `Cột “${SIM_IMPORT_HEADERS.subscription_type}”: “${subscriptionType || '(trống)'}” không hợp lệ. Chọn “Trả trước” hoặc “Trả sau”.`,
+        });
         return;
       }
       if (!VALID_CATALOGS.includes(catalog)) {
-        errors.push({ row: rowNumber, message: `Cột “${SIM_IMPORT_HEADERS.catalog}”: “${IMPORT_VALUE_LABELS[catalog] ?? catalog}” không hợp lệ. Chọn một trong: ${viValues(VALID_CATALOGS)}.` });
+        errors.push({
+          row: rowNumber,
+          message: `Cột “${SIM_IMPORT_HEADERS.catalog}”: “${IMPORT_VALUE_LABELS[catalog] ?? catalog}” không hợp lệ. Chọn một trong: ${viValues(VALID_CATALOGS)}.`,
+        });
         return;
       }
       if (!VALID_SIM_TYPES.includes(simType)) {
-        errors.push({ row: rowNumber, message: `Cột “${SIM_IMPORT_HEADERS.sim_type}”: “${IMPORT_VALUE_LABELS[simType] ?? simType}” không hợp lệ. Chọn một trong: ${viValues(VALID_SIM_TYPES)}.` });
+        errors.push({
+          row: rowNumber,
+          message: `Cột “${SIM_IMPORT_HEADERS.sim_type}”: “${IMPORT_VALUE_LABELS[simType] ?? simType}” không hợp lệ. Chọn một trong: ${viValues(VALID_SIM_TYPES)}.`,
+        });
         return;
       }
       if (Number.isNaN(price) || price < 0) {

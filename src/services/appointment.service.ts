@@ -73,7 +73,7 @@ export const appointmentService = {
     const store = await Store.findByPk(storeId);
     if (!store || store.status !== 'active') throw AppError.notFound('Không tìm thấy cửa hàng');
     const rows = await sequelize.query<{ appointment_time: string; count: number }>(
-      'SELECT appointment_time,COUNT(*) count FROM store_appointments WHERE store_id=:storeId AND appointment_date=:date AND status<>"huy" GROUP BY appointment_time',
+      'SELECT appointment_time,COUNT(*) count FROM store_appointments WHERE store_id=:storeId AND appointment_date=:date AND deleted_at IS NULL AND status<>"huy" GROUP BY appointment_time',
       { replacements: { storeId, date }, type: QueryTypes.SELECT },
     );
     const used = new Map(
@@ -157,5 +157,13 @@ export const appointmentService = {
       ],
     });
     return appointment;
+  },
+
+  async remove(id: number) {
+    const appointment = await StoreAppointment.findByPk(id);
+    if (!appointment) throw AppError.notFound('Không tìm thấy lịch hẹn');
+    const previous = { code: appointment.code, status: appointment.status };
+    await appointment.destroy();
+    return previous;
   },
 };

@@ -366,15 +366,15 @@ export const registrationService = {
   },
 
   async counts(currentUser: AuthUserPayload) {
-    let scope = '';
+    let scope = ' WHERE deleted_at IS NULL';
     const replacements: Record<string, number> = {};
     if (currentUser.role === 'giao_dich_vien') {
       const teller = await User.findByPk(currentUser.id);
       if (!teller?.store_id) throw AppError.forbidden();
-      scope = ' WHERE store_id=:storeId';
+      scope += ' AND store_id=:storeId';
       replacements.storeId = teller.store_id;
     } else if (currentUser.role === 'nhan_vien') {
-      scope = ' WHERE assigned_to=:userId';
+      scope += ' AND assigned_to=:userId';
       replacements.userId = currentUser.id;
     }
     const rows = await sequelize.query<{ status: string; count: number }>(
@@ -388,6 +388,38 @@ export const registrationService = {
       result.all += count;
     }
     return result;
+  },
+
+  async remove(id: number) {
+    return sequelize.transaction(async (transaction) => {
+      const group = await RegistrationGroup.findByPk(id, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (!group) throw AppError.notFound('Không tìm thấy đăng ký');
+      const previous = { code: group.code, status: group.status };
+      if (['moi', 'dang_xu_ly'].includes(group.status)) {
+        const items = await RegistrationItem.findAll({
+          where: { registration_group_id: id, type: 'sim' },
+          transaction,
+        });
+        for (const item of items) {
+          await SimNumber.update(
+            { status: 'available', reserved_until: null, reserved_registration_id: null },
+            {
+              where: {
+                id: item.reference_id,
+                status: 'reserved',
+                reserved_registration_id: id,
+              },
+              transaction,
+            },
+          );
+        }
+      }
+      await group.destroy({ transaction });
+      return previous;
+    });
   },
 
   async getById(id: number, currentUser: AuthUserPayload) {
