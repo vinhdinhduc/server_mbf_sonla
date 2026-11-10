@@ -78,7 +78,6 @@ export const simController = {
     if (!req.file) throw AppError.badRequest('Vui lòng tải lên file Excel (tên trường: file)');
     if (req.file.buffer.subarray(0, 4).toString('hex') !== '504b0304')
       throw AppError.badRequest('Nội dung tệp không phải Excel .xlsx hợp lệ');
-    const duplicateMode = req.body.mode === 'update' ? 'update' : 'skip';
     const digest = createHash('sha256').update(req.file.buffer).digest('hex');
     if (!/^[a-f0-9]{64}$/.test(req.body.digest ?? '') || req.body.digest !== digest) {
       throw AppError.badRequest('Tệp Excel đã thay đổi; vui lòng xem trước lại trước khi nhập');
@@ -86,15 +85,13 @@ export const simController = {
     try {
       const preview = jwt.verify(req.body.preview_token, env.JWT_SECRET) as {
         digest: string;
-        mode: string;
         userId: number;
         purpose: string;
       };
       if (
         preview.digest !== digest ||
-        preview.mode !== duplicateMode ||
         preview.userId !== req.user?.id ||
-        preview.purpose !== 'sim-import'
+        preview.purpose !== 'sim-import-replace'
       ) {
         throw new Error('Preview mismatch');
       }
@@ -103,11 +100,11 @@ export const simController = {
         'Phiên xem trước đã hết hạn hoặc không khớp; vui lòng xem trước lại',
       );
     }
-    const result = await simService.importFromExcel(req.file.buffer, duplicateMode);
+    const result = await simService.importFromExcel(req.file.buffer);
     req.auditContext = {
       module: 'sims',
       action: 'create',
-      description: `Import Excel: thêm ${result.inserted}, cập nhật ${result.updated}, bỏ qua ${result.skipped}; chế độ ${duplicateMode}`,
+      description: `Import Excel thay thế kho SIM: thêm ${result.inserted}, bỏ qua ${result.skipped}`,
     };
     sendSuccess(res, result, 'Nhập dữ liệu thành công');
   },
@@ -116,12 +113,10 @@ export const simController = {
     if (!req.file) throw AppError.badRequest('Vui lòng tải lên file Excel');
     if (req.file.buffer.subarray(0, 4).toString('hex') !== '504b0304')
       throw AppError.badRequest('Nội dung tệp không phải Excel .xlsx hợp lệ');
-    if (req.body.mode !== 'skip' && req.body.mode !== 'update')
-      throw AppError.badRequest('Chế độ xử lý trùng không hợp lệ');
-    const result = await simService.importFromExcel(req.file.buffer, req.body.mode, true);
+    const result = await simService.importFromExcel(req.file.buffer, true);
     const digest = createHash('sha256').update(req.file.buffer).digest('hex');
     const previewToken = jwt.sign(
-      { digest, mode: req.body.mode, userId: req.user?.id, purpose: 'sim-import' },
+      { digest, userId: req.user?.id, purpose: 'sim-import-replace' },
       env.JWT_SECRET,
       { expiresIn: '10m' },
     );

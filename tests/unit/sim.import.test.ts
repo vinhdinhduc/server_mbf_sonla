@@ -46,13 +46,19 @@ describe('M04 TC-09 - xem trước import', () => {
       ]);
     }
     const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
-    const preview = await simService.importFromExcel(buffer, 'skip', true);
+    const preview = await simService.importFromExcel(buffer, true);
     expect(preview).toMatchObject({ inserted: 990, updated: 0, skipped: 10 });
     expect(preview.errors).toHaveLength(10);
     expect(mockedSim.bulkCreate).not.toHaveBeenCalled();
+    expect(mockedSim.destroy).not.toHaveBeenCalled();
 
-    const result = await simService.importFromExcel(buffer, 'skip');
+    const result = await simService.importFromExcel(buffer);
     expect(result).toMatchObject({ inserted: 990, skipped: 10 });
+    expect(mockedSim.destroy).toHaveBeenCalledWith({
+      where: {},
+      force: true,
+      transaction: {},
+    });
     expect(mockedSim.bulkCreate).toHaveBeenCalledTimes(1);
     expect(mockedSim.bulkCreate.mock.calls[0][0] as unknown[]).toHaveLength(990);
   });
@@ -93,7 +99,6 @@ describe('M04 TC-09 - xem trước import', () => {
 
     const result = await simService.importFromExcel(
       await zip.generateAsync({ type: 'nodebuffer' }),
-      'skip',
     );
 
     expect(result).toMatchObject({ inserted: 1, skipped: 0 });
@@ -103,7 +108,22 @@ describe('M04 TC-09 - xem trước import', () => {
     });
   });
 
-  it('mẫu mới lưu đúng cước và số tháng, có chú thích và không có cột giá cũ', async () => {
+  it('không xóa kho cũ nếu file không có dòng SIM hợp lệ', async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Kho sim');
+    sheet.addRow(['phone_number', 'subscription_type', 'catalog', 'sim_type']);
+    sheet.addRow(['sai-so', 'postpaid', 'so_dep', 'thuong']);
+
+    const result = await simService.importFromExcel(
+      Buffer.from(await workbook.xlsx.writeBuffer()),
+    );
+
+    expect(result).toMatchObject({ inserted: 0, skipped: 1 });
+    expect(mockedSim.destroy).not.toHaveBeenCalled();
+    expect(mockedSim.bulkCreate).not.toHaveBeenCalled();
+  });
+
+  it('nhập thay thế kho cũ và lưu đúng cước cùng số tháng', async () => {
     const buffer = await simService.createImportTemplate();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as any);
@@ -115,17 +135,18 @@ describe('M04 TC-09 - xem trước import', () => {
     expect(sheet.getCell('F1').note).toBeTruthy();
     expect(sheet.getCell('G1').note).toBeTruthy();
     mockedSim.findAll.mockResolvedValue([{ phone_number: '0901234567' }] as any);
-    expect(await simService.importFromExcel(buffer, 'update')).toMatchObject({
-      updated: 1,
+    expect(await simService.importFromExcel(buffer)).toMatchObject({
+      inserted: 1,
+      updated: 0,
       skipped: 0,
     });
+    expect(mockedSim.findAll).not.toHaveBeenCalled();
     expect(mockedSim.bulkCreate.mock.calls[0][0][0]).toMatchObject({
       committed_monthly_fee: 150000,
       commitment_months: 24,
     });
     const options = mockedSim.bulkCreate.mock.calls[0][1];
-    expect(options?.updateOnDuplicate).toContain('committed_monthly_fee');
-    expect(options?.updateOnDuplicate).not.toContain('price');
+    expect(options?.updateOnDuplicate).toBeUndefined();
   });
 
   it('đọc theo tên cột; trả trước lưu null; báo lỗi cước âm, thập phân và chuỗi ghép', async () => {
@@ -151,7 +172,6 @@ describe('M04 TC-09 - xem trước import', () => {
     });
     const result = await simService.importFromExcel(
       Buffer.from(await workbook.xlsx.writeBuffer()),
-      'skip',
     );
     expect(result).toMatchObject({ inserted: 2, skipped: 3 });
     expect(mockedSim.bulkCreate.mock.calls[0][0][0]).toMatchObject({ committed_monthly_fee: null });
@@ -170,7 +190,6 @@ describe('M04 TC-09 - xem trước import', () => {
     sheet.addRow(['0901234568', 'postpaid', 'so_dep', 'thuong', '', 150000, -2, 'available']);
     const result = await simService.importFromExcel(
       Buffer.from(await workbook.xlsx.writeBuffer()),
-      'skip',
     );
     expect(result).toMatchObject({ inserted: 1, skipped: 1 });
     expect(mockedSim.bulkCreate.mock.calls[0][0][0]).toMatchObject({
@@ -207,7 +226,7 @@ describe('M04 TC-09 - xem trước import', () => {
       'commitment_months',
     ]);
     sheet.addRow(['0901234567', 'postpaid', 'so_dep', 'thuong', 150000, 24]);
-    await simService.importFromExcel(Buffer.from(await workbook.xlsx.writeBuffer()), 'skip');
+    await simService.importFromExcel(Buffer.from(await workbook.xlsx.writeBuffer()));
     expect(mockedSim.bulkCreate.mock.calls[0][0][0]).toMatchObject({
       price: 150000,
       committed_monthly_fee: null,

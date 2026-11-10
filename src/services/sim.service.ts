@@ -458,21 +458,11 @@ export const simService = {
   /**
    * Import Excel kho sim so (POST /api/admin/sims/import, muc 12).
    *
-   * CHIEN LUOC DA CHON (ghi ro theo yeu cau muc 12):
-   * 1) Doc toan bo file, validate TUNG dong theo schema bang sim_numbers va
-   *    kiem tra trung phone_number (ca voi DB lan trung lap ngay trong file).
-   * 2) Cac dong LOI (thieu cot bat buoc, sai kieu, trung so) duoc GOM lai kem
-   *    so dong loi va KHONG duoc dua vao danh sach insert.
-   * 3) Chi cac dong HOP LE duoc bulkCreate trong 1 transaction DUY NHAT.
-   *    => Neu transaction insert nay chinh no that bai (loi ha tang DB) thi
-   *       moi rollback toan bo lo hop le; con cac dong loi tu dau da bi tach
-   *       ra ngoai nen KHONG anh huong den viec insert cac dong hop le khac.
-   *    Day la cach dam bao "1 dong loi khong lam rollback toan bo file" ma
-   *    van giu tinh nguyen tu (transaction) cho phan du lieu da duoc chap nhan.
+   * Import thay the toan bo kho SIM. Cac dong loi van duoc bao rieng va bo qua;
+   * viec xoa kho cu va them cac dong hop le dien ra trong cung mot transaction.
    */
   async importFromExcel(
     buffer: Buffer,
-    duplicateMode: 'skip' | 'update',
     previewOnly = false,
   ): Promise<ImportResult | ImportPreview> {
     const workbook = new ExcelJS.Workbook();
@@ -508,13 +498,7 @@ export const simService = {
     const validRows: Array<CreateSimDto & { prefix: string }> = [];
     const sample: ImportPreview['sample'] = [];
     const seenInFile = new Set<string>();
-    let skippedDuplicates = 0;
-    let updated = 0;
     let total = 0;
-
-    const existingPhones = new Set(
-      (await SimNumber.findAll({ attributes: ['phone_number'] })).map((s) => s.phone_number),
-    );
 
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return; // dong header
@@ -608,18 +592,6 @@ export const simService = {
         errors.push({ row: rowNumber, message: `Số ${phoneNumber} bị lặp trong file` });
         return;
       }
-      if (existingPhones.has(phoneNumber) && duplicateMode === 'skip') {
-        skippedDuplicates += 1;
-        if (sample.length < 20)
-          sample.push({
-            row: rowNumber,
-            phone_number: phoneNumber,
-            subscription_type: subscriptionType,
-            action: 'Bỏ qua',
-          });
-        return;
-      }
-      if (existingPhones.has(phoneNumber)) updated += 1;
       const status = VALID_STATUSES.includes(statusRaw) ? statusRaw : 'available';
 
       seenInFile.add(phoneNumber);
@@ -628,7 +600,7 @@ export const simService = {
           row: rowNumber,
           phone_number: phoneNumber,
           subscription_type: subscriptionType,
-          action: existingPhones.has(phoneNumber) ? 'Cập nhật' : 'Thêm',
+          action: 'Thêm',
         });
       validRows.push({
         phone_number: phoneNumber,
@@ -646,32 +618,21 @@ export const simService = {
 
     if (!previewOnly && validRows.length > 0) {
       await sequelize.transaction(async (t) => {
+        await SimNumber.destroy({
+          where: {},
+          force: true,
+          transaction: t,
+        });
         await SimNumber.bulkCreate(validRows as unknown as InferCreationAttributes<SimNumber>[], {
           transaction: t,
-          updateOnDuplicate:
-            duplicateMode === 'update'
-              ? [
-                  'prefix',
-                  'subscription_type',
-                  'catalog',
-                  'sim_type',
-                  ...(columns.has('price') || columns.has('price_deprecated')
-                    ? ['price' as const]
-                    : []),
-                  'committed_monthly_fee',
-                  'bundle_note',
-                  'commitment_months',
-                  'status',
-                ]
-              : undefined,
         });
       });
     }
 
     const result = {
-      inserted: validRows.length - updated,
-      updated,
-      skipped: skippedDuplicates + errors.length,
+      inserted: validRows.length,
+      updated: 0,
+      skipped: errors.length,
       errors,
     };
     if (!previewOnly) return result;
