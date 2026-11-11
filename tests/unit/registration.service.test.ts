@@ -7,6 +7,7 @@ import { Solution } from '../../src/models/Solution.model';
 import { registrationService } from '../../src/services/registration.service';
 import { settingService } from '../../src/services/setting.service';
 import { emailService } from '../../src/services/email.service';
+import { User } from '../../src/models/User.model';
 
 jest.mock('../../src/config/database', () => ({
   sequelize: { transaction: jest.fn(), query: jest.fn() },
@@ -16,6 +17,7 @@ jest.mock('../../src/models/RegistrationItem.model');
 jest.mock('../../src/models/SimNumber.model');
 jest.mock('../../src/models/Package.model');
 jest.mock('../../src/models/Solution.model');
+jest.mock('../../src/models/User.model');
 jest.mock('../../src/services/setting.service');
 jest.mock('../../src/services/email.service', () => ({ emailService: { enqueue: jest.fn().mockResolvedValue(undefined) } }));
 jest.mock('../../src/utils/registrationWorkflow', () => ({ allocateNumber: jest.fn().mockResolvedValue(1), assertTransition: jest.fn() }));
@@ -25,6 +27,7 @@ const mockedGroup = RegistrationGroup as jest.Mocked<typeof RegistrationGroup>;
 const mockedItem = RegistrationItem as jest.Mocked<typeof RegistrationItem>;
 const mockedSim = SimNumber as jest.Mocked<typeof SimNumber>;
 const mockedSetting = settingService as jest.Mocked<typeof settingService>;
+const mockedUser = User as jest.Mocked<typeof User>;
 
 describe('registration.service - submitCart', () => {
   beforeEach(() => {
@@ -38,6 +41,62 @@ describe('registration.service - submitCart', () => {
       subscription_type: 'postpaid',
     } as any);
     mockedSim.update.mockResolvedValue([1] as any);
+  });
+
+  describe('registration.service - assign registration', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('cho phép admin gán đăng ký cho nhân viên đang hoạt động ở cửa hàng khác', async () => {
+      const updatedGroup = { update: jest.fn().mockResolvedValue(undefined) };
+      const transaction = { LOCK: { UPDATE: 'UPDATE' } };
+      mockedSequelize.transaction.mockImplementation(async (callback: any) => callback(transaction as any));
+      mockedGroup.findByPk.mockResolvedValue(updatedGroup as any);
+      mockedUser.findByPk.mockResolvedValue({
+        id: 8,
+        role: 'nhan_vien',
+        status: 'active',
+        store_id: 20,
+      } as any);
+      jest
+        .spyOn(registrationService, 'getById')
+        .mockResolvedValue({ id: 10, assigned_to: 8, store_id: 2 } as any);
+
+      await registrationService.updateStatus(
+        10,
+        { assigned_to: 8 },
+        { id: 1, role: 'admin' } as any,
+      );
+
+      expect(updatedGroup.update).toHaveBeenCalledWith(
+        expect.objectContaining({ assigned_to: 8 }),
+        { transaction },
+      );
+    });
+
+    it('không cho phép gán tài khoản admin làm người xử lý', async () => {
+      const transaction = { LOCK: { UPDATE: 'UPDATE' } };
+      mockedSequelize.transaction.mockImplementation(async (callback: any) => callback(transaction as any));
+      mockedGroup.findByPk.mockResolvedValue({ update: jest.fn() } as any);
+      mockedUser.findByPk.mockResolvedValue({
+        id: 8,
+        role: 'admin',
+        status: 'active',
+      } as any);
+      jest.spyOn(registrationService, 'getById').mockResolvedValue({ id: 10 } as any);
+
+      await expect(
+        registrationService.updateStatus(
+          10,
+          { assigned_to: 8 },
+          { id: 1, role: 'admin' } as any,
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    });
   });
 
   const dto = {

@@ -457,19 +457,11 @@ export const registrationService = {
         if (!store || store.status !== 'active') throw AppError.badRequest('Cửa hàng không hợp lệ');
       }
       const targetStoreId = dto.store_id === undefined ? group.store_id : dto.store_id;
-      let targetAssignee = dto.assigned_to === undefined ? group.assigned_to : dto.assigned_to;
-      if (dto.store_id !== undefined && dto.assigned_to === undefined && targetAssignee) {
-        const currentAssignee = await User.findByPk(targetAssignee, { transaction });
-        if (!targetStoreId || currentAssignee?.store_id !== targetStoreId) targetAssignee = null;
-      }
-      if (targetAssignee != null) {
-        const assignee = await User.findByPk(targetAssignee, { transaction });
-        if (
-          !assignee ||
-          assignee.status !== 'active' ||
-          (targetStoreId && assignee.store_id !== targetStoreId)
-        )
-          throw AppError.badRequest('Người xử lý không thuộc cửa hàng');
+      const targetAssignee = dto.assigned_to === undefined ? group.assigned_to : dto.assigned_to;
+      if (dto.assigned_to != null) {
+        const assignee = await User.findByPk(dto.assigned_to, { transaction });
+        if (!assignee || assignee.status !== 'active' || assignee.role === 'admin')
+          throw AppError.badRequest('Người xử lý phải là nhân viên đang hoạt động');
       }
       const previous = group.status;
       if (dto.status) assertTransition(previous, dto.status, currentUser.role, dto.note);

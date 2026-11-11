@@ -34,7 +34,7 @@ export const submitCartSchema = z.object({
   if (value.website) context.addIssue({ code: 'custom', path: ['website'], message: 'Yêu cầu không hợp lệ' });
   if (value.delivery_method === 'address') {
     if (!value.ward) context.addIssue({ code: 'custom', path: ['ward'], message: 'Vui lòng chọn xã/phường Sơn La' });
-    if (!value.delivery_address) context.addIssue({ code: 'custom', path: ['delivery_address'], message: 'Vui lòng nhập địa chỉ nhận hàng' });
+    if (!value.delivery_address) context.addIssue({ code: 'custom', path: ['delivery_address'], message: 'Vui lòng nhập địa chỉ nhận SIM' });
   }
   if (value.delivery_method === 'store' && !value.delivery_store) {
     context.addIssue({ code: 'custom', path: ['delivery_store'], message: 'Vui lòng chọn cửa hàng nhận SIM' });
